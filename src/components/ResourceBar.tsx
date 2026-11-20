@@ -5,6 +5,7 @@ const details = {
   stone: ["🪨", "Stone"],
   food: ["🍄", "Rations"],
   tools: ["⚒️", "Tools"],
+  weapons: ["⚔️", "Weapons"],
 } as const;
 
 export function ResourceBar({ resources }: { resources: Resources }) {

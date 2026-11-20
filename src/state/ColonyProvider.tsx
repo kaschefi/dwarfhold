@@ -16,6 +16,7 @@ const initialState: ColonyState = {
     stone: 9,
     food: 18,
     tools: 1,
+    weapons: 0,
   },
   dwarves: [
     {
@@ -23,8 +24,10 @@ const initialState: ColonyState = {
       name: "Bromli Copperkeg",
       title: "Hold Warden",
       icon: "🧔🏻",
+      species: "dwarf",
       assignment: "mining",
       status: "working",
+      equippedTool: false,
       specialty: "mining",
     },
     {
@@ -32,8 +35,10 @@ const initialState: ColonyState = {
       name: "Yrsa Flintbraid",
       title: "Trail Scout",
       icon: "🧔🏼‍♀️",
+      species: "dwarf",
       assignment: "woodcutting",
       status: "working",
+      equippedTool: false,
       specialty: "woodcutting",
     },
     {
@@ -41,8 +46,10 @@ const initialState: ColonyState = {
       name: "Dori Ashmantle",
       title: "Stone Singer",
       icon: "🧔🏽",
+      species: "dwarf",
       assignment: null,
       status: "idle",
+      equippedTool: false,
     },
   ],
 };
