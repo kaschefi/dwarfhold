@@ -86,4 +86,15 @@ This document tracks architectural and code changes made to the codebase, explai
   * **Guaranteed Cleanup via `finally`:** Wrapped status reset and in-flight tracking release inside a `finally` block so locks are guaranteed to release whether the request succeeds or throws.
   * **Reactive UI Feedback:** In `ColonyPage.tsx`, dropdown options now clearly display `(Away)` or `(Crafting)` badges, dropdowns are disabled while dispatch is in flight, and the button is disabled with explanatory text (`"Scout is away…"`, `"Scout is crafting…"`, or `"Beyond the gate…"`) when unavailable.
 
+### 3. Reassignment Guard & Single-Activity Invariant (`src/components/DwarfRoster.tsx`, `src/simulation.ts`, `src/pages/ColonyPage.tsx`)
+* **Problem:**
+  * If a dwarf with an active assignment (e.g. Bromli on mining) was sent on an expedition, the simulation tick (`advanceDay`) still generated stone/wood every 8 seconds because it only checked `if (!dwarf.assignment)`.
+  * The Shift Ledger still counted travelling dwarves as active producers.
+  * In the Roster UI, assignment dropdowns were only disabled for `expedition`, but not for future `crafting` workers.
+* **Fix:**
+  * **Strict Production Invariant:** Updated `advanceDay()` in `src/simulation.ts` to require `dwarf.status === "working" && dwarf.assignment` before contributing to daily resource production.
+  * **Accurate Ledger Output:** Updated `dailyOutput` and job counter tallies in `ColonyPage.tsx` to only tally dwarves actively in `"working"` status.
+  * **UI Reassignment Lock:** Updated `DwarfRoster.tsx` to disable job selection whenever a dwarf is busy (`status === "expedition" || status === "crafting"`).
+  * **Automated Verification:** Added a unit test in `src/simulation.test.ts` asserting that dwarves on expeditions do not produce resources.
+
 

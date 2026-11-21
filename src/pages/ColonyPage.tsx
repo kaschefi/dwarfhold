@@ -18,7 +18,7 @@ export function ColonyPage() {
 
   const dailyOutput = colony.dwarves.reduce<Record<ResourceKey, number>>(
     (total, dwarf) => {
-      if (dwarf.assignment) {
+      if (dwarf.status === "working" && dwarf.assignment) {
         const output = production[dwarf.assignment];
         Object.entries(output).forEach(([resource, amount]) => {
           total[resource as ResourceKey] += amount ?? 0;
@@ -72,7 +72,7 @@ export function ColonyPage() {
                 <p>
                   {
                     colony.dwarves.filter(
-                      (dwarf) => dwarf.assignment === job,
+                      (dwarf) => dwarf.status === "working" && dwarf.assignment === job,
                     ).length
                   }{" "}
                   assigned
