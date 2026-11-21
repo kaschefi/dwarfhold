@@ -62,3 +62,16 @@ This document tracks architectural and code changes made to the codebase, explai
   * If the dwarf returns safely, their tool remains equipped; if an expedition fails, the dwarf returns with their equipment intact.
 * **Why:**
   * Prevents state desynchronization between Person 1's equipment management and Person 2's async expedition lifecycle.
+
+---
+
+## Requirement D4 — Resilient Expeditions (Branch: `feat/d4-expeditions`)
+
+### 1. Permanent Worker Lock Bug Fix (`src/state/ColonyProvider.tsx`)
+* **Problem:**
+  * When an expedition failed (e.g. `blocked-pass` returning HTTP 503 or network errors), `sendExpedition()` caught the error and logged a chronicle notice, but never updated `colony.dwarves`.
+  * As a result, the dwarf remained permanently stuck in `status: "expedition"`, locked out of assignments and future expeditions.
+* **Fix:**
+  * Added worker status recovery inside the `catch` block of `sendExpedition()`.
+  * On failure, the travelling dwarf's status is automatically restored to `"working"` (if assigned to a job) or `"idle"` (if unassigned).
+

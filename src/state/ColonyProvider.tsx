@@ -193,6 +193,17 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
         ].slice(0, 6),
       );
     } catch (error) {
+      setColony((current) => ({
+        ...current,
+        dwarves: current.dwarves.map((item) =>
+          item.id === dwarf.id
+            ? {
+                ...item,
+                status: item.assignment ? "working" : "idle",
+              }
+            : item,
+        ),
+      }));
       setActivities((current) =>
         [
           {
