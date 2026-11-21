@@ -35,6 +35,15 @@ export function ColonyPage() {
     },
   );
 
+  const selectedDwarf = colony.dwarves.find(
+    (dwarf) => dwarf.id === expeditionDwarf,
+  );
+  const isDwarfUnavailable =
+    !selectedDwarf ||
+    selectedDwarf.status === "expedition" ||
+    selectedDwarf.status === "crafting";
+  const isDispatchDisabled = expeditionPending || isDwarfUnavailable;
+
   return (
     <div className="dashboard">
       <DwarfRoster dwarves={colony.dwarves} onAssign={assignDwarf} />
@@ -97,13 +106,23 @@ export function ColonyPage() {
             Scout
             <select
               value={expeditionDwarf}
+              disabled={expeditionPending}
               onChange={(event) => setExpeditionDwarf(event.target.value)}
             >
-              {colony.dwarves.map((dwarf) => (
-                <option key={dwarf.id} value={dwarf.id}>
-                  {dwarf.name}
-                </option>
-              ))}
+              {colony.dwarves.map((dwarf) => {
+                const statusSuffix =
+                  dwarf.status === "expedition"
+                    ? " (Away)"
+                    : dwarf.status === "crafting"
+                      ? " (Crafting)"
+                      : "";
+                return (
+                  <option key={dwarf.id} value={dwarf.id}>
+                    {dwarf.name}
+                    {statusSuffix}
+                  </option>
+                );
+              })}
             </select>
           </label>
 
@@ -111,6 +130,7 @@ export function ColonyPage() {
             Destination
             <select
               value={destination}
+              disabled={expeditionPending}
               onChange={(event) => setDestination(event.target.value)}
             >
               <option value="crystal-cave">Crystal Cave</option>
@@ -120,10 +140,16 @@ export function ColonyPage() {
           </label>
 
           <button
-            disabled={expeditionPending}
+            disabled={isDispatchDisabled}
             onClick={() => sendExpedition(expeditionDwarf, destination)}
           >
-            {expeditionPending ? "Beyond the gate…" : "Send expedition"}
+            {expeditionPending
+              ? "Beyond the gate…"
+              : selectedDwarf?.status === "expedition"
+                ? "Scout is away…"
+                : selectedDwarf?.status === "crafting"
+                  ? "Scout is crafting…"
+                  : "Send expedition"}
           </button>
           <p>
             A result returns in one request. The selected dwarf is unavailable

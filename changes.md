@@ -75,3 +75,15 @@ This document tracks architectural and code changes made to the codebase, explai
   * Added worker status recovery inside the `catch` block of `sendExpedition()`.
   * On failure, the travelling dwarf's status is automatically restored to `"working"` (if assigned to a job) or `"idle"` (if unassigned).
 
+### 2. Concurrency & Double-Dispatch Prevention (`src/state/ColonyProvider.tsx`, `src/pages/ColonyPage.tsx`)
+* **Problem:**
+  * Rapid double-clicking the dispatch button or firing concurrent dispatch calls could trigger multiple in-flight expedition requests for the same dwarf before React re-renders.
+  * `assignDwarf` permitted reassigning and overriding the status of away or crafting workers.
+  * In the UI, the expedition button remained clickable for scouts who were already away or ineligible, causing confusing state mutations.
+* **Fix:**
+  * **Synchronous Runtime In-Flight Guard:** Added `inFlightDwarves = useRef<Set<string>>(new Set())` in `ColonyProvider.tsx` to synchronously reject repeated dispatches for the same dwarf before event loop microtasks finish.
+  * **Eligibility Invariant Enforcement:** `sendExpedition()` and `assignDwarf()` now verify the worker exists and is not currently on an expedition or crafting (`status !== "expedition" && status !== "crafting"`).
+  * **Guaranteed Cleanup via `finally`:** Wrapped status reset and in-flight tracking release inside a `finally` block so locks are guaranteed to release whether the request succeeds or throws.
+  * **Reactive UI Feedback:** In `ColonyPage.tsx`, dropdown options now clearly display `(Away)` or `(Crafting)` badges, dropdowns are disabled while dispatch is in flight, and the button is disabled with explanatory text (`"Scout is away…"`, `"Scout is crafting…"`, or `"Beyond the gate…"`) when unavailable.
+
+
