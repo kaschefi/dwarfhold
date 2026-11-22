@@ -272,6 +272,21 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Integrates the pure crafting task engine cleanly into React context, enabling future UI components to dispatch timed forge jobs and observe completion events.
 
+### Feat 3: Forge UI Overhaul & Artisan Selection (`src/pages/ForgePage.tsx`, `src/styles.css`)
+* **What was changed:**
+  * **Artisan Selector (`ForgePage.tsx`):** Added a dedicated Craftsman Selection panel allowing players to assign any available dwarf in Stonehome to the forge hearth. Dwarves away on expedition or already crafting are marked and disabled.
+  * **Active Crafting Progress Card:** When `colony.activeCrafting` is in flight:
+    - Displays active item being forged, artisan name, and portrait.
+    - Displays live progress bar (`progress / duration Days`) with calculated completion percentage.
+    - Notes that crafting advances with each deep day tick and that the artisan generates 0 job yield while crafting.
+  * **Forge Controls & Disabled States:**
+    - Updated Tool and Weapon cards to show recipe duration (2 Days) and trigger `startCrafting(recipeId, selectedArtisanId)`.
+    - Automatically disables forge buttons with informative tooltips when the forge is already occupied, when the selected artisan is busy/unavailable, or when material stocks are insufficient.
+  * **Visual Styling (`styles.css`):** Added high-contrast forge aesthetic styling for the active craft card, progress bar fill, and craftsman selector matching the Stonehome UI.
+* **Why:**
+  * Satisfies Requirement D3 specification: "The interface should show who is crafting and when the result completes. Immediate crafting is not sufficient."
+
+
 
 
 
