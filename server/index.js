@@ -8,6 +8,11 @@ let expeditionNumber = 16;
 const outcomes = {
   "crystal-cave": { rewards: { stone: 8, tools: 1 }, message: "The scout found a crystal seam and an abandoned mason's tool." },
   "old-mine": { rewards: { stone: 12, wood: 2 }, message: "The old mine still holds good stone and usable supports." },
+  "goblin-outpost": {
+    rewards: { food: 6, tools: 1, stone: 10 },
+    message: "The scout raided a goblin outpost and returned with plunder, but hostile warbands tracked the scout back to Stonehome!",
+    triggersRaid: true,
+  },
 };
 
 app.use(cors()); app.use(express.json());

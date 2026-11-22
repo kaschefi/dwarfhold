@@ -119,5 +119,20 @@ This document tracks architectural and code changes made to the codebase, explai
   * **Destination Intel & Risk Preview:** Added destination descriptions previewing expected rewards and danger level (e.g. warning color for Blocked Pass).
   * **Clear Hold Rule Notice:** Updated panel footer to explicitly state the hold rules: *"The travelling scout is away from the hold and produces no daily resources. Equipped tools remain with the scout and return intact."*
 
+---
+
+## Requirement D7 — Expedition Consequences and Defense (Branch: `feat/d7-expedition-defense`)
+
+### 1. Hostile Destination & Raid Data Contracts (`server/index.js`, `src/types.ts`)
+* **What was changed:**
+  * Added high-risk `"goblin-outpost"` destination to `outcomes` in `server/index.js` with tempting high-tier plunder (`{ food: 6, tools: 1, stone: 10 }`), narrative return message, and `triggersRaid: true` flag.
+  * Preserved backend failure safeguards (`?fail=true` and `blocked-pass`) so failed expeditions abort early with HTTP 503 before returning rewards or setting `triggersRaid`.
+  * Added `triggersRaid?: boolean` to `ExpeditionResult` in `src/types.ts`.
+  * Added `RaidResolution` interface in `src/types.ts` defining the outcome contract (`defended: boolean`, `weaponsConsumed: number`, `looted: Partial<Resources>`, `message: string`, `tone: "good" | "warning"`).
+* **Why:**
+  * Fulfills Requirement D7's core premise: an expedition destination that changes the situation in Stonehome by provoking a hostile counterattack rather than solely awarding loot.
+  * Establishes a clean, typed contract separating server expedition results from colony defense calculations.
+
+
 
 
