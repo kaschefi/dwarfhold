@@ -563,6 +563,15 @@ footer {
     color: #8f775a
 }
 
+.food-shortage-warning {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #8c3b28;
+    background: #381a13;
+    color: #ffb29d;
+    font: 600 14px "Barlow Condensed", sans-serif;
+}
+
 @media(max-width:1200px) {
     body {
         min-width: 0
