@@ -240,6 +240,27 @@ This document tracks architectural and code changes made to the codebase, explai
   * Keeps `src/` strictly dedicated to 100% shipping production code with zero test noise.
   * Separates pure business logic from UI rendering, paving the way for upcoming requirements (D3 Timed Crafting, D5 Persistence Engine, D6 Species Expansion) without code sprawl or merge conflict risks.
 
+---
+
+## Requirement D3 — Crafting as Colony Work (Branch: `feat/d3-crafting-work`)
+
+### Feat 1: Pure Crafting Simulation Engine & Task Progression (`src/domain/crafting.ts`, `src/domain/simulation.ts`, `tests/crafting.test.ts`)
+* **What was changed:**
+  * Added `CRAFTING_DURATIONS` (`tool: 2`, `weapon: 2`) and typed costs in `src/domain/crafting.ts`.
+  * Implemented pure `startCraftingTask(state, recipeId, workerId, duration)`:
+    - **Worker & Forge Availability Invariants:** Rejects attempt if forge already has an active craft (`activeCrafting !== null`), if worker does not exist, or if worker is on an expedition (`status === "expedition"`) or already crafting.
+    - **Resource Check Invariant:** Rejects attempt if timber or stone are insufficient.
+    - **Non-Mutation Invariant:** Guaranteed that an invalid attempt modifies neither workers nor resources.
+    - **Upfront Material Deduction & Worker Lock:** On valid start, deducts required wood and stone, transitions artisan status to `"crafting"`, and initializes `activeCrafting` task with `progress: 0` and specified duration.
+  * Implemented pure `progressCrafting(state)` and integrated it into daily simulation tick `advanceDay()` in `src/domain/simulation.ts`:
+    - Increments task progress by +1 each simulation day tick.
+    - **Single-Activity Invariant:** An artisan in `"crafting"` status generates 0 daily job yield during the day.
+    - **Completion Resolution:** When `progress >= duration`, awards crafted item (`tools + 1` or `weapons + 1`), restores artisan status back to `"working"` (if assigned) or `"idle"` (if unassigned), and resets `activeCrafting: null`.
+  * Expanded `tests/crafting.test.ts` (11 exhaustive tests) covering task initiation, invalid attempt protection (lacking materials, away scout, busy forge), step-by-step progress advancement, artisan status restoration, and automatic day-tick completion in `advanceDay()`.
+* **Why:**
+  * Fulfills Requirement D3 specification: "forging a tool or weapon requires materials, an eligible character, and time. An invalid attempt must change neither workers nor resources. Immediate crafting is not sufficient."
+
+
 
 
 

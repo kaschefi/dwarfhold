@@ -1,4 +1,5 @@
 import type { ColonyState, JobType, Resources } from "../types";
+import { progressCrafting } from "./crafting";
 
 export const production: Record<Exclude<JobType, null>, Partial<Resources>> = {
   woodcutting: { wood: 3 }, mining: { stone: 2 }, farming: { food: 4 },
@@ -34,12 +35,19 @@ export function advanceDay(state: ColonyState): ColonyState {
     resources.food = foodAvailable - foodNeeded;
   }
 
-  return {
-    ...state,
-    day: state.day + 1,
-    resources,
-    foodShortage: notEnoughFood,
-  };
+    let nextState: ColonyState = {
+      ...state,
+      day: state.day + 1,
+      resources,
+      foodShortage: notEnoughFood,
+    };
+
+    if(nextState.activeCrafting) {
+    const { state: afterCrafting } = progressCrafting(nextState);
+    nextState = afterCrafting;
+  }
+
+  return nextState;
 }
 
 export const jobLabel = (job: JobType) => job ? ({
