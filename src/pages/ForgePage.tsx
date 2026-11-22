@@ -1,49 +1,202 @@
 import { useState } from "react";
 import { Chronicle } from "../components/Chronicle";
-import { toolWoodCost } from "../species";
+import {
+  canCraftTool,
+  canCraftWeapon,
+  CRAFTING_DURATIONS,
+} from "../domain/crafting";
+import { jobLabel } from "../domain/simulation";
 import { useColony } from "../state/ColonyContext";
 
 export function ForgePage() {
-  const { colony, activities, craftTool } = useColony();
-  const [workerId, setWorkerId] = useState("");
-  const idleWorkers = colony.dwarves.filter((worker) => worker.status === "idle");
-  const worker = idleWorkers.find((item) => item.id === workerId);
-  const woodCost = worker ? toolWoodCost(worker) : 3;
+  const { colony, activities, startCrafting } = useColony();
+
+  const availableArtisans = colony.dwarves.filter(
+    (d) => d.status !== "expedition" && d.status !== "crafting",
+  );
+  const [selectedArtisanId, setSelectedArtisanId] = useState<string>(
+    () => availableArtisans[0]?.id ?? colony.dwarves[0]?.id ?? "",
+  );
+
+  const activeTask = colony.activeCrafting;
+  const activeArtisan = activeTask
+    ? colony.dwarves.find((d) => d.id === activeTask.workerId)
+    : null;
+
+  const currentArtisan = colony.dwarves.find((d) => d.id === selectedArtisanId);
+  const isArtisanUnavailable =
+    !currentArtisan ||
+    currentArtisan.status === "expedition" ||
+    currentArtisan.status === "crafting";
+
+  const isForgeBusy = !!activeTask;
+
+  const hasToolMaterials = canCraftTool(colony.resources);
+  const hasWeaponMaterials = canCraftWeapon(colony.resources);
+
+  const isToolDisabled = isForgeBusy || isArtisanUnavailable || !hasToolMaterials;
+  const isWeaponDisabled = isForgeBusy || isArtisanUnavailable || !hasWeaponMaterials;
+
+  function getButtonTooltip(hasMaterials: boolean): string {
+    if (isForgeBusy) return "The forge is currently occupied by an active project.";
+    if (isArtisanUnavailable) return "Selected artisan is unavailable or busy.";
+    if (!hasMaterials) return "Insufficient materials in the hold stores.";
+    return "Assign artisan and start forging.";
+  }
 
   return (
     <div className="forge-layout">
-      <section className="panel forge">
-        <div>
-          <small>EMBER FORGE</small>
-          <h2>Craft a tool</h2>
-          <p>Choose an idle worker to make a tool.</p>
-          <p>Kivi the kobold uses 2 wood. Other workers use 3 wood.</p>
-          <label>
-            Worker{" "}
-            <select value={workerId} onChange={(event) => setWorkerId(event.target.value)}>
-              <option value="">Select a worker</option>
-              {idleWorkers.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}{item.species === "kobold" ? " (Kobold)" : ""}
-                </option>
-              ))}
+      <div className="center-stack">
+        {/* Active Crafting Progress Card */}
+        {activeTask && (
+          <section className="panel active-craft-card">
+            <header>
+              <div>
+                <small>FORGE HEARTH IN FLAMES</small>
+                <h2>
+                  Anvil Active:{" "}
+                  {activeTask.recipeId === "tool" ? "Iron Tool" : "Dwarven Weapon"}
+                </h2>
+              </div>
+              <span className="craft-badge">🔥 IN PROGRESS</span>
+            </header>
+
+            <div className="active-craft-details">
+              <div className="artisan-info">
+                <span className="artisan-icon">{activeArtisan?.icon ?? "🧔"}</span>
+                <div>
+                  <strong>{activeArtisan?.name ?? "Artisan"}</strong>
+                  <p>Busy at the anvil — produces 0 job resources while crafting.</p>
+                </div>
+              </div>
+
+              <div className="craft-progress-section">
+                <div className="craft-progress-header">
+                  <span>
+                    Progress: {activeTask.progress} / {activeTask.duration} Days
+                  </span>
+                  <span>
+                    {Math.round((activeTask.progress / activeTask.duration) * 100)}%
+                  </span>
+                </div>
+                <div className="craft-progress-bar">
+                  <div
+                    className="craft-progress-fill"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (activeTask.progress / activeTask.duration) * 100,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <small className="craft-hint">
+                  Advances with each deep day tick (~8s).
+                </small>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Artisan Selection Panel */}
+        <section className="panel forge-artisan-picker">
+          <header>
+            <div>
+              <small>THE ARTISAN</small>
+              <h2>Select Craftsman</h2>
+            </div>
+            <span>Required for forging</span>
+          </header>
+          <div className="picker-body">
+            <label htmlFor="artisan-select">
+              Assign a dwarf to the forge hearth:
+            </label>
+            <select
+              id="artisan-select"
+              value={selectedArtisanId}
+              disabled={isForgeBusy}
+              onChange={(e) => setSelectedArtisanId(e.target.value)}
+            >
+              {colony.dwarves.map((dwarf) => {
+                let statusLabel = "";
+                if (dwarf.status === "expedition")
+                  statusLabel = " [Away on Expedition]";
+                else if (dwarf.status === "crafting")
+                  statusLabel = " [Already Crafting]";
+                else if (dwarf.assignment)
+                  statusLabel = ` (${jobLabel(dwarf.assignment)})`;
+                else statusLabel = " (Idle)";
+
+                const toolTag = dwarf.equippedTool ? " ⚒️" : "";
+
+                return (
+                  <option
+                    key={dwarf.id}
+                    value={dwarf.id}
+                    disabled={
+                      dwarf.status === "expedition" || dwarf.status === "crafting"
+                    }
+                  >
+                    {dwarf.name}
+                    {statusLabel}
+                    {toolTag}
+                  </option>
+                );
+              })}
             </select>
-          </label>
-        </div>
-        <div className="recipe">
-          <span>{woodCost} 🪵</span>
-          <i>+</i>
-          <span>2 🪨</span>
-          <i>→</i>
-          <span>1 ⚒️</span>
-          <button
-            disabled={!worker || colony.resources.wood < woodCost || colony.resources.stone < 2}
-            onClick={() => craftTool(workerId)}
-          >
-            Forge tool
-          </button>
-        </div>
-      </section>
+            <p className="artisan-notice">
+              The assigned dwarf works at the forge for the duration and produces no
+              local job yield until completion.
+            </p>
+          </div>
+        </section>
+
+        {/* Tool Recipe */}
+        <section className={`panel forge ${isForgeBusy ? "busy-dim" : ""}`}>
+          <div>
+            <small>EMBER FORGE · {CRAFTING_DURATIONS.tool} DAYS</small>
+            <h2>Craft a tool</h2>
+            <p>Equip the hold for future work (+1 resource/day).</p>
+          </div>
+          <div className="recipe">
+            <span>3 🪵</span>
+            <i>+</i>
+            <span>2 🪨</span>
+            <i>→</i>
+            <span>1 ⚒️</span>
+            <button
+              onClick={() => startCrafting("tool", selectedArtisanId)}
+              disabled={isToolDisabled}
+              title={getButtonTooltip(hasToolMaterials)}
+            >
+              Forge tool
+            </button>
+          </div>
+        </section>
+
+        {/* Weapon Recipe */}
+        <section className={`panel forge ${isForgeBusy ? "busy-dim" : ""}`}>
+          <div>
+            <small>EMBER FORGE · {CRAFTING_DURATIONS.weapon} DAYS</small>
+            <h2>Craft a weapon</h2>
+            <p>Arm the hold against hostile raiders.</p>
+          </div>
+          <div className="recipe">
+            <span>2 🪵</span>
+            <i>+</i>
+            <span>4 🪨</span>
+            <i>→</i>
+            <span>1 ⚔️</span>
+            <button
+              onClick={() => startCrafting("weapon", selectedArtisanId)}
+              disabled={isWeaponDisabled}
+              title={getButtonTooltip(hasWeaponMaterials)}
+            >
+              Forge weapon
+            </button>
+          </div>
+        </section>
+      </div>
 
       <Chronicle activities={activities} />
     </div>

@@ -1,4 +1,4 @@
-import type { ExpeditionResult } from "./types";
+import type { ExpeditionResult } from "../types";
 
   export interface ExpeditionOptions {
     timeoutMs?: number;

@@ -166,6 +166,134 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Fulfills Requirement D7's UX mandate: the raid result and its effect on game state must be clearly visible and communicated to the player with strong affordances before and after dispatch.
 
+---
+
+## Requirement D2 — Useful Tools, Weapons, and Equipment (Branch: `feat/d2-tools-and-weapons`)
+
+### Feat 1: Equipped Tool Daily Production Benefit (`src/simulation.ts`, `src/pages/ColonyPage.tsx`)
+* **What was changed:**
+  * Updated `advanceDay()` in `src/simulation.ts` so that active workers (`status === "working"` with an active `assignment`) carrying an equipped tool (`dwarf.equippedTool === true`) receive a +1 bonus to their produced resource per day (Woodcutting: 3 $\to$ 4, Mining: 2 $\to$ 3, Farming: 4 $\to$ 5).
+  * Maintained expedition and work invariants: Dwarves with `status !== "working"` (e.g. `expedition`, `crafting`, or `idle`) or with `assignment === null` produce 0 resources, even if carrying an equipped tool.
+  * Maintained food shortage halving: when `foodShortage` is active, the tool-augmented production is halved via `Math.floor(producedAmount / 2)` (e.g., Woodcutting with tool produces $\lfloor 4 / 2 \rfloor = 2$).
+  * Updated the `dailyOutput` aggregation in `src/pages/ColonyPage.tsx` so the Shift Ledger accurately projects daily yields including worker equipped tool bonuses.
+  * Added 3 comprehensive unit tests in `src/simulation.test.ts` verifying tool bonus across jobs, zero-yield preservation when not working/away on expeditions, and food shortage halving behavior.
+* **Why:**
+  * Satisfies Requirement D2 specification: "an equipped tool grants +1 additional unit of the dwarf's assigned resource per day" while adhering strictly to the D4/D2 Expedition Tool Policy (equipped tools remain with the scout on expeditions but produce no colony yield while away).
+
+### Feat 2: Tool Inventory & Equipping Invariants (`src/equipment.ts`, `src/equipment.test.ts`, `src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Created `src/equipment.ts` with pure state transformation functions `equipToolState` and `unequipToolState`:
+    - **Equip Invariants:** Enforces that a dwarf cannot equip a tool if none are in stock (`resources.tools < 1`), if already equipped (`dwarf.equippedTool === true`), or if away on an expedition (`status === "expedition"`) or crafting (`status === "crafting"`). Decrements `resources.tools` by 1 and sets `dwarf.equippedTool = true`.
+    - **Unequip Invariants:** Enforces that a dwarf cannot unequip unless carrying a tool (`dwarf.equippedTool === true`), and cannot unequip while away on an expedition or crafting. Increments `resources.tools` by 1 and sets `dwarf.equippedTool = false`.
+    - **Conservation of Tools:** Enforces strict invariant: `resources.tools + count(equippedTools) === total colony tools`.
+  * Connected `equipTool` and `unequipTool` into `ColonyProvider.tsx` and exposed them via `ColonyContextValue` with chronicle activity updates.
+  * Created unit test suite `src/equipment.test.ts` (7 tests) covering inventory decrement/increment, tool conservation, empty inventory guards, duplicate equip prevention, and status restrictions (`expedition`, `crafting`).
+* **Why:**
+  * Satisfies Requirement D2 specification: "Dwarves can equip an available tool from resources.tools. Invariants: 1 dwarf carries at most 1 tool; 1 tool cannot be equipped by multiple dwarves; total equipped tools + unequipped inventory tools = total colony tools. Equipping and unequipped actions must keep inventory strictly consistent."
+
+### Feat 3: Colony Weapons Recipe (`src/crafting.ts`, `src/crafting.test.ts`, `src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Created `src/crafting.ts` with typed recipe constants (`WEAPON_COST = { wood: 2, stone: 4 }`, `TOOL_COST = { wood: 3, stone: 2 }`), eligibility checkers (`canCraftWeapon`, `canCraftTool`), and pure transformation `craftWeaponState(state)`.
+  * Enforced weapon forging invariants:
+    - Verifies that colony possesses sufficient materials (`wood >= 2 && stone >= 4`).
+    - If wood and/or stone are lacking, aborts cleanly and returns descriptive chronicle warning notices without mutating colony resources.
+    - On success: deducts 2 wood and 4 stone, increments `resources.weapons` by 1, and returns a celebratory chronicle notice.
+  * Added `craftWeapon()` to `ColonyContextValue` and `ColonyProvider.tsx` with activity chronicle logging.
+  * Added unit test suite `src/crafting.test.ts` (5 tests) covering successful weapon forging, partial resource deficiencies (low wood, low stone, low both), and eligibility checker validations.
+* **Why:**
+  * Satisfies Requirement D2 specification: "Add a weapon recipe to the Forge (e.g., 2 wood + 4 stone -> 1 weapon). Weapons are stored in resources.weapons for colony defense (consumed/checked in D7)."
+
+### Feat 4: UI Affordances (`src/components/DwarfRoster.tsx`, `src/pages/ForgePage.tsx`, `src/pages/ColonyPage.tsx`, `src/styles.css`)
+* **What was changed:**
+  * **Roster Equipment Affordances (`DwarfRoster.tsx`, `ColonyPage.tsx`, `styles.css`):**
+    - Passed `onEquipTool`, `onUnequipTool`, and `availableTools` (`colony.resources.tools`) from `ColonyContext` into `DwarfRoster`.
+    - Added an equipped tool badge (`⚒️`) next to the dwarf's name with an explanatory tooltip (`"Equipped tool (+1 resource/day)"`).
+    - Added interactive equip/unequip action controls alongside the assignment dropdown:
+      - **Equip Action:** When unequipped, renders `+ Equip ⚒️`. Disabled if dwarf is away on expedition or crafting, or if `availableTools < 1`, with tooltips explaining the disable condition.
+      - **Unequip Action:** When equipped, renders `Unequip`. Disabled if dwarf is away on expedition or crafting.
+  * **Forge Weapon Recipe Card (`ForgePage.tsx`):**
+    - Wrapped the forge recipe cards in a vertical `.center-stack` container alongside the right-hand Chronicle panel.
+    - Added the weapon crafting card (`2 🪵 + 4 🪨 → 1 ⚔️`) with `"Forge weapon"` trigger button invoking `craftWeapon()`.
+* **Why:**
+  * Satisfies Requirement D2 specification: "Show equipped tool status, owner, and equip/unequip toggles in the Roster. Add the weapon crafting card to ForgePage.tsx."
+
+---
+
+## Architectural Refactoring — Professional Domain & Test Reorganization
+
+### Clean Separation of Domain, Services, and Dedicated Test Suite
+* **What was changed:**
+  * Created root `tests/` directory and centralized all automated unit and integration tests:
+    - `tests/simulation.test.ts`
+    - `tests/equipment.test.ts`
+    - `tests/crafting.test.ts`
+    - `tests/defense.test.ts`
+  * Created `src/domain/` to isolate pure, deterministic colony simulation business logic (zero React dependencies):
+    - `src/domain/simulation.ts` (daily tick, job production, food shortage)
+    - `src/domain/equipment.ts` (tool equipping, unequipping, conservation invariants)
+    - `src/domain/crafting.ts` (recipes, material checks, weapon & tool forging)
+    - `src/domain/defense.ts` (raid calculations, weapon wear, deterministic looting)
+  * Created `src/services/` and relocated `api.ts` to `src/services/api.ts` (network and timeout resilience).
+  * Updated `tsconfig.app.json` to include both `"src"` and `"tests"`.
+  * Updated all consumer import paths across `src/components/`, `src/pages/`, `src/state/`, and `tests/`.
+* **Why:**
+  * Keeps `src/` strictly dedicated to 100% shipping production code with zero test noise.
+  * Separates pure business logic from UI rendering, paving the way for upcoming requirements (D3 Timed Crafting, D5 Persistence Engine, D6 Species Expansion) without code sprawl or merge conflict risks.
+
+---
+
+## Requirement D3 — Crafting as Colony Work (Branch: `feat/d3-crafting-work`)
+
+### Feat 1: Pure Crafting Simulation Engine & Task Progression (`src/domain/crafting.ts`, `src/domain/simulation.ts`, `tests/crafting.test.ts`)
+* **What was changed:**
+  * Added `CRAFTING_DURATIONS` (`tool: 2`, `weapon: 2`) and typed costs in `src/domain/crafting.ts`.
+  * Implemented pure `startCraftingTask(state, recipeId, workerId, duration)`:
+    - **Worker & Forge Availability Invariants:** Rejects attempt if forge already has an active craft (`activeCrafting !== null`), if worker does not exist, or if worker is on an expedition (`status === "expedition"`) or already crafting.
+    - **Resource Check Invariant:** Rejects attempt if timber or stone are insufficient.
+    - **Non-Mutation Invariant:** Guaranteed that an invalid attempt modifies neither workers nor resources.
+    - **Upfront Material Deduction & Worker Lock:** On valid start, deducts required wood and stone, transitions artisan status to `"crafting"`, and initializes `activeCrafting` task with `progress: 0` and specified duration.
+  * Implemented pure `progressCrafting(state)` and integrated it into daily simulation tick `advanceDay()` in `src/domain/simulation.ts`:
+    - Increments task progress by +1 each simulation day tick.
+    - **Single-Activity Invariant:** An artisan in `"crafting"` status generates 0 daily job yield during the day.
+    - **Completion Resolution:** When `progress >= duration`, awards crafted item (`tools + 1` or `weapons + 1`), restores artisan status back to `"working"` (if assigned) or `"idle"` (if unassigned), and resets `activeCrafting: null`.
+  * Expanded `tests/crafting.test.ts` (11 exhaustive tests) covering task initiation, invalid attempt protection (lacking materials, away scout, busy forge), step-by-step progress advancement, artisan status restoration, and automatic day-tick completion in `advanceDay()`.
+* **Why:**
+  * Fulfills Requirement D3 specification: "forging a tool or weapon requires materials, an eligible character, and time. An invalid attempt must change neither workers nor resources. Immediate crafting is not sufficient."
+
+### Feat 2: Colony State & Context Integration (`src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Added `startCrafting: (recipeId: "tool" | "weapon", workerId: string) => void` to `ColonyContextValue` interface in `src/state/ColonyContext.ts`.
+  * Implemented `startCrafting(recipeId, workerId)` in `ColonyProvider.tsx` using `startCraftingTask`:
+    - Checks worker availability and resource sufficiency.
+    - Appends a warning entry to the Hold Chronicle on invalid attempts without state mutations.
+    - Updates colony state on valid start and records an artisan crafting announcement in the Chronicle with `tone: "good"`.
+  * Added reactive simulation tick craft completion detection in `useEffect` in `ColonyProvider.tsx`:
+    - When `current.activeCrafting` completes on a simulation tick (`next.activeCrafting === null`), dynamically identifies the completed item and artisan name and posts a celebratory completion notice to the Chronicle.
+* **Why:**
+  * Integrates the pure crafting task engine cleanly into React context, enabling future UI components to dispatch timed forge jobs and observe completion events.
+
+### Feat 3: Forge UI Overhaul & Artisan Selection (`src/pages/ForgePage.tsx`, `src/styles.css`)
+* **What was changed:**
+  * **Artisan Selector (`ForgePage.tsx`):** Added a dedicated Craftsman Selection panel allowing players to assign any available dwarf in Stonehome to the forge hearth. Dwarves away on expedition or already crafting are marked and disabled.
+  * **Active Crafting Progress Card:** When `colony.activeCrafting` is in flight:
+    - Displays active item being forged, artisan name, and portrait.
+    - Displays live progress bar (`progress / duration Days`) with calculated completion percentage.
+    - Notes that crafting advances with each deep day tick and that the artisan generates 0 job yield while crafting.
+  * **Forge Controls & Disabled States:**
+    - Updated Tool and Weapon cards to show recipe duration (2 Days) and trigger `startCrafting(recipeId, selectedArtisanId)`.
+    - Automatically disables forge buttons with informative tooltips when the forge is already occupied, when the selected artisan is busy/unavailable, or when material stocks are insufficient.
+  * **Visual Styling (`styles.css`):** Added high-contrast forge aesthetic styling for the active craft card, progress bar fill, and craftsman selector matching the Stonehome UI.
+* **Why:**
+  * Satisfies Requirement D3 specification: "The interface should show who is crafting and when the result completes. Immediate crafting is not sufficient."
+
+
+
+
+
+
+
+
+
 
 
 

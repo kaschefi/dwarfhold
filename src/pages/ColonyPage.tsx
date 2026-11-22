@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Chronicle } from "../components/Chronicle";
 import { DwarfRoster } from "../components/DwarfRoster";
-import { DEFENSE_WEAPON_THRESHOLD } from "../defense";
-import { jobLabel, production, productionFor } from "../simulation";
+import { DEFENSE_WEAPON_THRESHOLD } from "../domain/defense";
+import { jobLabel, production } from "../domain/simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 
@@ -40,6 +40,8 @@ export function ColonyPage() {
     lastRaid,
     dismissRaidAlert,
     assignDwarf,
+    equipTool,
+    unequipTool,
     sendExpedition,
   } = useColony();
   const [destination, setDestination] = useState("crystal-cave");
@@ -50,7 +52,7 @@ export function ColonyPage() {
       if (dwarf.status === "working" && dwarf.assignment) {
         const output = productionFor(dwarf);
         Object.entries(output).forEach(([resource, amount]) => {
-          let producedAmount = amount ?? 0;
+          let producedAmount = (amount ?? 0) + (dwarf.equippedTool ? 1 : 0);
 
           if (colony.foodShortage) {
             producedAmount = Math.floor(producedAmount / 2);
@@ -91,7 +93,13 @@ export function ColonyPage() {
   }
   return (
     <div className="dashboard">
-      <DwarfRoster dwarves={colony.dwarves} onAssign={assignDwarf} />
+      <DwarfRoster
+        dwarves={colony.dwarves}
+        onAssign={assignDwarf}
+        onEquipTool={equipTool}
+        onUnequipTool={unequipTool}
+        availableTools={colony.resources.tools}
+      />
 
       <section className="center-stack">
         {colony.foodShortage && (

@@ -1,4 +1,5 @@
-import type { ColonyState, Dwarf, JobType, Resources } from "./types";
+import type { ColonyState, JobType, Resources } from "../types";
+import { progressCrafting } from "./crafting";
 
 export const production: Record<Exclude<JobType, null>, Partial<Resources>> = {
   woodcutting: { wood: 3 }, mining: { stone: 2 }, farming: { food: 4 },
@@ -21,7 +22,7 @@ export function advanceDay(state: ColonyState): ColonyState {
     const output = productionFor(dwarf);
 
     Object.entries(output).forEach(([resource, amount]) => {
-      let producedAmount = amount ?? 0;
+      let producedAmount = (amount ?? 0) + (dwarf.equippedTool ? 1 : 0);
 
       if (state.foodShortage) {
         producedAmount = Math.floor(producedAmount / 2);
@@ -42,12 +43,19 @@ export function advanceDay(state: ColonyState): ColonyState {
     resources.food = foodAvailable - foodNeeded;
   }
 
-  return {
+  let nextState: ColonyState = {
     ...state,
     day: state.day + 1,
     resources,
     foodShortage: notEnoughFood,
   };
+
+  if (nextState.activeCrafting) {
+    const { state: afterCrafting } = progressCrafting(nextState);
+    nextState = afterCrafting;
+  }
+
+  return nextState;
 }
 
 export const jobLabel = (job: JobType) => job ? ({

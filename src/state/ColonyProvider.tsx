@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { beginExpedition } from "../api";
-import { applyRaidToResources, resolveRaid } from "../defense";
-import { advanceDay, jobLabel } from "../simulation";
-import { forgeTool, recruitFromCrystalCave, toolWoodCost } from "../species";
+import { beginExpedition } from "../services/api";
+import { applyRaidToResources, resolveRaid } from "../domain/defense";
+import { craftWeaponState, startCraftingTask } from "../domain/crafting";
+import { equipToolState, unequipToolState } from "../domain/equipment";
+import { advanceDay, jobLabel } from "../domain/simulation";
 import type {
   Activity,
   ColonyState,
@@ -76,10 +77,32 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (paused) return;
 
-    const timer = window.setInterval(
-      () => setColony((current) => advanceDay(current)),
-      8_000,
-    );
+    const timer = window.setInterval(() => {
+      setColony((current) => {
+        const taskBefore = current.activeCrafting;
+        const next = advanceDay(current);
+
+        if (taskBefore && !next.activeCrafting) {
+          const worker = current.dwarves.find((d) => d.id === taskBefore.workerId);
+          const workerName = worker ? worker.name : "The artisan";
+          const itemLabel =
+            taskBefore.recipeId === "tool" ? "sturdy iron tool" : "stout weapon";
+          setActivities((act) =>
+            [
+              {
+                id: crypto.randomUUID(),
+                day: next.day,
+                message: `${workerName} finished forging a ${itemLabel} at the Ember Forge!`,
+                tone: "good" as const,
+              },
+              ...act,
+            ].slice(0, 6),
+          );
+        }
+
+        return next;
+      });
+    }, 8_000);
 
     return () => window.clearInterval(timer);
   }, [paused]);
@@ -115,11 +138,61 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  function craftTool(workerId: string) {
-    const worker = colony.dwarves.find((item) => item.id === workerId);
-    if (!worker || worker.status !== "idle") return;
+  function equipTool(dwarfId: string) {
+    const result = equipToolState(colony, dwarfId);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
 
-    if (colony.resources.wood < toolWoodCost(worker) || colony.resources.stone < 2) {
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+        tone: "good" as const,
+      },
+      ...current,
+    ].slice(0, 6));
+  }
+
+  function unequipTool(dwarfId: string) {
+    const result = unequipToolState(colony, dwarfId);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+      },
+      ...current,
+    ].slice(0, 6));
+  }
+
+  function craftTool() {
+    if (colony.resources.wood < 3) {
       setActivities((current) => [
         {
           id: crypto.randomUUID(),
@@ -144,6 +217,60 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
         ...current,
       ].slice(0, 6),
     );
+  }
+
+  function craftWeapon() {
+    const result = craftWeaponState(colony);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+        tone: "good" as const,
+      },
+      ...current,
+    ].slice(0, 6));
+  }
+
+  function startCrafting(recipeId: "tool" | "weapon", workerId: string) {
+    const result = startCraftingTask(colony, recipeId, workerId);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+        tone: "good" as const,
+      },
+      ...current,
+    ].slice(0, 6));
   }
 
   async function sendExpedition(dwarfId: string, destination: string) {
@@ -269,7 +396,11 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     dismissRaidAlert: () => setLastRaid(null),
     togglePaused: () => setPaused((value) => !value),
     assignDwarf,
+    equipTool,
+    unequipTool,
     craftTool,
+    craftWeapon,
+    startCrafting,
     sendExpedition,
   };
 

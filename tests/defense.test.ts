@@ -3,8 +3,8 @@ import {
   applyRaidToResources,
   DEFENSE_WEAPON_THRESHOLD,
   resolveRaid,
-} from "./defense";
-import type { Resources } from "./types";
+} from "../src/domain/defense";
+import type { Resources } from "../src/types";
 
 describe("colony defense and raid resolution", () => {
   const baseResources: Resources = {
