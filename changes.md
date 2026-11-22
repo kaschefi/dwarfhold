@@ -108,4 +108,16 @@ This document tracks architectural and code changes made to the codebase, explai
   * **Friendly Network Error Formatting:** Catches low-level fetch failures (e.g. server offline) and formats them into clean chronicle-friendly messages: *"Cannot reach the expedition outpost. Check network connection."*
   * **Automated Test Coverage:** Added unit test suite `src/api.test.ts` covering successful dispatch, custom backend errors, non-JSON gateway fallbacks, timeout aborts, and fetch network errors.
 
+### 5. Expedition Selection UI & Affordance (`src/pages/ColonyPage.tsx`, `src/styles.css`)
+* **Problem:**
+  * Players had minimal visibility into dwarf assignment and equipment before sending them beyond the gate, risking accidental dispatch of vital workers (e.g. sole farmers).
+  * Destinations provided no contextual preview of expected rewards or risks.
+  * The agreed equipment policy (*"Equipped tools stay with the travelling dwarf and return safely"*) was not communicated in the interface as required by D4.
+* **Fix:**
+  * **Enriched Scout Details:** The scout selector now displays each dwarf's current state and assignment (e.g. `[Away]`, `[Crafting]`, `(Mining)`, `(Idle)`) along with a `⚒️` badge if carrying an equipped tool.
+  * **Tool Policy Communication:** When a scout carrying an equipped tool is selected, an explicit note renders: *"⚒️ Carrying equipped tool (returns safely after expedition)."*
+  * **Destination Intel & Risk Preview:** Added destination descriptions previewing expected rewards and danger level (e.g. warning color for Blocked Pass).
+  * **Clear Hold Rule Notice:** Updated panel footer to explicitly state the hold rules: *"The travelling scout is away from the hold and produces no daily resources. Equipped tools remain with the scout and return intact."*
+
+
 

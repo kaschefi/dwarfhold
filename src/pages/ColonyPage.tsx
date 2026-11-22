@@ -5,6 +5,25 @@ import { jobLabel, production } from "../simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 
+const destinationDetails: Record<
+  string,
+  { label: string; preview: string; danger?: boolean }
+> = {
+  "crystal-cave": {
+    label: "Crystal Cave",
+    preview: "Rich crystal seams (stone) and salvageable mining tools.",
+  },
+  "old-mine": {
+    label: "The Old Mine",
+    preview: "Abandoned tunnels holding deep stone and structural timber.",
+  },
+  "blocked-pass": {
+    label: "Blocked Pass",
+    preview: "Unstable rockfall corridor. Extremely treacherous route.",
+    danger: true,
+  },
+};
+
 export function ColonyPage() {
   const {
     colony,
@@ -110,21 +129,31 @@ export function ColonyPage() {
               onChange={(event) => setExpeditionDwarf(event.target.value)}
             >
               {colony.dwarves.map((dwarf) => {
-                const statusSuffix =
-                  dwarf.status === "expedition"
-                    ? " (Away)"
-                    : dwarf.status === "crafting"
-                      ? " (Crafting)"
-                      : "";
+                let statusTag = "";
+                if (dwarf.status === "expedition") statusTag = " [Away]";
+                else if (dwarf.status === "crafting") statusTag = " [Crafting]";
+                else if (dwarf.assignment)
+                  statusTag = ` (${jobLabel(dwarf.assignment)})`;
+                else statusTag = " (Idle)";
+
+                const toolTag = dwarf.equippedTool ? " ⚒️" : "";
+
                 return (
                   <option key={dwarf.id} value={dwarf.id}>
                     {dwarf.name}
-                    {statusSuffix}
+                    {statusTag}
+                    {toolTag}
                   </option>
                 );
               })}
             </select>
           </label>
+
+          {selectedDwarf?.equippedTool && (
+            <p className="tool-note">
+              ⚒️ Carrying equipped tool (returns safely after expedition).
+            </p>
+          )}
 
           <label>
             Destination
@@ -133,11 +162,25 @@ export function ColonyPage() {
               disabled={expeditionPending}
               onChange={(event) => setDestination(event.target.value)}
             >
-              <option value="crystal-cave">Crystal Cave</option>
-              <option value="old-mine">The Old Mine</option>
-              <option value="blocked-pass">Blocked Pass</option>
+              {Object.entries(destinationDetails).map(([key, info]) => (
+                <option key={key} value={key}>
+                  {info.label}
+                </option>
+              ))}
             </select>
           </label>
+
+          {destinationDetails[destination] && (
+            <p
+              className={
+                destinationDetails[destination].danger
+                  ? "intel danger"
+                  : "intel"
+              }
+            >
+              {destinationDetails[destination].preview}
+            </p>
+          )}
 
           <button
             disabled={isDispatchDisabled}
@@ -152,8 +195,8 @@ export function ColonyPage() {
                   : "Send expedition"}
           </button>
           <p>
-            A result returns in one request. The selected dwarf is unavailable
-            while travelling.
+            The travelling scout is away from the hold and produces no daily
+            resources. Equipped tools remain with the scout and return intact.
           </p>
         </section>
 
