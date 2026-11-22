@@ -191,6 +191,19 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Satisfies Requirement D2 specification: "Dwarves can equip an available tool from resources.tools. Invariants: 1 dwarf carries at most 1 tool; 1 tool cannot be equipped by multiple dwarves; total equipped tools + unequipped inventory tools = total colony tools. Equipping and unequipped actions must keep inventory strictly consistent."
 
+### Feat 3: Colony Weapons Recipe (`src/crafting.ts`, `src/crafting.test.ts`, `src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Created `src/crafting.ts` with typed recipe constants (`WEAPON_COST = { wood: 2, stone: 4 }`, `TOOL_COST = { wood: 3, stone: 2 }`), eligibility checkers (`canCraftWeapon`, `canCraftTool`), and pure transformation `craftWeaponState(state)`.
+  * Enforced weapon forging invariants:
+    - Verifies that colony possesses sufficient materials (`wood >= 2 && stone >= 4`).
+    - If wood and/or stone are lacking, aborts cleanly and returns descriptive chronicle warning notices without mutating colony resources.
+    - On success: deducts 2 wood and 4 stone, increments `resources.weapons` by 1, and returns a celebratory chronicle notice.
+  * Added `craftWeapon()` to `ColonyContextValue` and `ColonyProvider.tsx` with activity chronicle logging.
+  * Added unit test suite `src/crafting.test.ts` (5 tests) covering successful weapon forging, partial resource deficiencies (low wood, low stone, low both), and eligibility checker validations.
+* **Why:**
+  * Satisfies Requirement D2 specification: "Add a weapon recipe to the Forge (e.g., 2 wood + 4 stone -> 1 weapon). Weapons are stored in resources.weapons for colony defense (consumed/checked in D7)."
+
+
 
 
 

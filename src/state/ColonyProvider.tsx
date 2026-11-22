@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginExpedition } from "../api";
 import { applyRaidToResources, resolveRaid } from "../defense";
+import { craftWeaponState } from "../crafting";
 import { equipToolState, unequipToolState } from "../equipment";
 import { advanceDay, jobLabel } from "../simulation";
 import type {
@@ -203,6 +204,33 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  function craftWeapon() {
+    const result = craftWeaponState(colony);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+        tone: "good" as const,
+      },
+      ...current,
+    ].slice(0, 6));
+  }
+
   async function sendExpedition(dwarfId: string, destination: string) {
     if (inFlightDwarves.current.has(dwarfId)) return;
 
@@ -330,6 +358,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     equipTool,
     unequipTool,
     craftTool,
+    craftWeapon,
     sendExpedition,
   };
 
