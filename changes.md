@@ -133,6 +133,16 @@ This document tracks architectural and code changes made to the codebase, explai
   * Fulfills Requirement D7's core premise: an expedition destination that changes the situation in Stonehome by provoking a hostile counterattack rather than solely awarding loot.
   * Establishes a clean, typed contract separating server expedition results from colony defense calculations.
 
+### 2. Pure Deterministic Defense Engine & Automated Tests (`src/defense.ts`, `src/defense.test.ts`)
+* **What was changed:**
+  * Created `src/defense.ts` containing `resolveRaid(resources, weaponThreshold)` and `applyRaidToResources(resources, resolution)` as pure simulation functions with `DEFENSE_WEAPON_THRESHOLD = 2`.
+  * **Defended Path (`weapons >= 2`):** Colony repels the attackers, with a defined weapon wear rule consuming 1 weapon (`weaponsConsumed: 1`) to reflect equipment damage during combat. No resources are lost. Returns a victorious Chronicle log with `tone: "good"`.
+  * **Under-Defended Path (`weapons < 2`):** Raid breaches the gates. Raiders deterministically plunder 50% of stored food (minimum 1 if available), up to 4 wood, and up to 3 stone, clamping safely so resources never become negative. 0 weapons are consumed. Returns a warning Chronicle entry with `tone: "warning"` itemizing looted goods.
+  * Created unit test suite `src/defense.test.ts` with 6 exhaustive test cases covering threshold boundaries (2 weapons, >2 weapons, 1 weapon, 0 weapons), resource clamping, empty hold edge cases, and deterministic resource mutations.
+* **Why:**
+  * Adheres strictly to the architectural goal of **State Determinism** documented in `docs/DECISIONS.md`: isolating combat math from React hooks and network side-effects makes defense calculation 100% reproducible and testable.
+
+
 
 
 
