@@ -5,13 +5,21 @@ export const production: Record<Exclude<JobType, null>, Partial<Resources>> = {
   woodcutting: { wood: 3 }, mining: { stone: 2 }, farming: { food: 4 },
 };
 
+export function productionFor(worker: Dwarf): Partial<Resources> {
+  if (!worker.assignment) return {};
+  if (worker.species === "kobold" && worker.assignment === "mining") {
+    return { stone: (production.mining.stone ?? 0) + 2 };
+  }
+  return production[worker.assignment];
+}
+
 export function advanceDay(state: ColonyState): ColonyState {
   const resources = { ...state.resources };
 
   state.dwarves.forEach((dwarf) => {
     if (dwarf.status !== "working" || !dwarf.assignment) return;
 
-    const output = production[dwarf.assignment];
+    const output = productionFor(dwarf);
 
     Object.entries(output).forEach(([resource, amount]) => {
       let producedAmount = (amount ?? 0) + (dwarf.equippedTool ? 1 : 0);
@@ -35,14 +43,14 @@ export function advanceDay(state: ColonyState): ColonyState {
     resources.food = foodAvailable - foodNeeded;
   }
 
-    let nextState: ColonyState = {
-      ...state,
-      day: state.day + 1,
-      resources,
-      foodShortage: notEnoughFood,
-    };
+  let nextState: ColonyState = {
+    ...state,
+    day: state.day + 1,
+    resources,
+    foodShortage: notEnoughFood,
+  };
 
-    if(nextState.activeCrafting) {
+  if (nextState.activeCrafting) {
     const { state: afterCrafting } = progressCrafting(nextState);
     nextState = afterCrafting;
   }

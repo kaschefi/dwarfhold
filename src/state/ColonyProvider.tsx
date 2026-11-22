@@ -7,6 +7,7 @@ import { advanceDay, jobLabel } from "../domain/simulation";
 import type {
   Activity,
   ColonyState,
+  Dwarf,
   JobType,
   RaidResolution,
   ResourceKey,
@@ -196,7 +197,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
         {
           id: crypto.randomUUID(),
           day: colony.day,
-          message: "The forge needs more timber.",
+          message: "The forge needs more wood or stone.",
           tone: "warning" as const,
         },
         ...current,
@@ -204,21 +205,13 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setColony((current) => ({
-      ...current,
-      resources: {
-        ...current.resources,
-        wood: current.resources.wood - 3,
-        stone: current.resources.stone - 2,
-        tools: current.resources.tools + 1,
-      },
-    }));
+    setColony((current) => forgeTool(current, workerId));
     setActivities((current) =>
       [
         {
           id: crypto.randomUUID(),
           day: colony.day,
-          message: "A sturdy iron tool joins the stores.",
+          message: `${worker.name} forged a tool.`,
           tone: "good" as const,
         },
         ...current,
@@ -326,18 +319,17 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
           finalResources = applyRaidToResources(withRewards, raidOutcome);
         }
 
-        return {
+        const returnedDwarves: Dwarf[] = current.dwarves.map((item) =>
+          item.id === dwarf.id
+            ? { ...item, status: item.assignment ? "working" : "idle" }
+            : item,
+        );
+
+        return recruitFromCrystalCave({
           ...current,
           resources: finalResources,
-          dwarves: current.dwarves.map((item) =>
-            item.id === dwarf.id
-              ? {
-                ...item,
-                status: item.assignment ? "working" : "idle",
-              }
-              : item,
-          ),
-        };
+          dwarves: returnedDwarves,
+        }, destination);
       });
 
       if (raidOutcome) {

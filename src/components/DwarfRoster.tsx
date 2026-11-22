@@ -71,6 +71,9 @@ export function DwarfRoster({
                 <p>
                   {dwarf.title} · {specialty}
                 </p>
+                {dwarf.species === "kobold" && (
+                  <p>Mining: +2 extra stone before hunger · Tool: 2 wood instead of 3</p>
+                )}
 
                 <div className="dwarf-actions">
                   <select
