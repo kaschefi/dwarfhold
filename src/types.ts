@@ -40,11 +40,20 @@ export interface ColonyState {
   activeCrafting?: CraftingTask | null;
 }
 
+export interface RaidResolution {
+  defended: boolean;
+  weaponsConsumed: number;
+  looted: Partial<Resources>;
+  message: string;
+  tone: "good" | "warning";
+}
+
 export interface ExpeditionResult { 
   expeditionId: string; 
   status: "completed"; 
   rewards: Partial<Resources>; 
   message: string;
+  triggersRaid?: boolean;
 }
 
 export interface Activity { 

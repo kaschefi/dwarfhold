@@ -119,5 +119,56 @@ This document tracks architectural and code changes made to the codebase, explai
   * **Destination Intel & Risk Preview:** Added destination descriptions previewing expected rewards and danger level (e.g. warning color for Blocked Pass).
   * **Clear Hold Rule Notice:** Updated panel footer to explicitly state the hold rules: *"The travelling scout is away from the hold and produces no daily resources. Equipped tools remain with the scout and return intact."*
 
+---
+
+## Requirement D7 — Expedition Consequences and Defense (Branch: `feat/d7-expedition-defense`)
+
+### 1. Hostile Destination & Raid Data Contracts (`server/index.js`, `src/types.ts`)
+* **What was changed:**
+  * Added high-risk `"goblin-outpost"` destination to `outcomes` in `server/index.js` with tempting high-tier plunder (`{ food: 6, tools: 1, stone: 10 }`), narrative return message, and `triggersRaid: true` flag.
+  * Preserved backend failure safeguards (`?fail=true` and `blocked-pass`) so failed expeditions abort early with HTTP 503 before returning rewards or setting `triggersRaid`.
+  * Added `triggersRaid?: boolean` to `ExpeditionResult` in `src/types.ts`.
+  * Added `RaidResolution` interface in `src/types.ts` defining the outcome contract (`defended: boolean`, `weaponsConsumed: number`, `looted: Partial<Resources>`, `message: string`, `tone: "good" | "warning"`).
+* **Why:**
+  * Fulfills Requirement D7's core premise: an expedition destination that changes the situation in Stonehome by provoking a hostile counterattack rather than solely awarding loot.
+  * Establishes a clean, typed contract separating server expedition results from colony defense calculations.
+
+### 2. Pure Deterministic Defense Engine & Automated Tests (`src/defense.ts`, `src/defense.test.ts`)
+* **What was changed:**
+  * Created `src/defense.ts` containing `resolveRaid(resources, weaponThreshold)` and `applyRaidToResources(resources, resolution)` as pure simulation functions with `DEFENSE_WEAPON_THRESHOLD = 2`.
+  * **Defended Path (`weapons >= 2`):** Colony repels the attackers, with a defined weapon wear rule consuming 1 weapon (`weaponsConsumed: 1`) to reflect equipment damage during combat. No resources are lost. Returns a victorious Chronicle log with `tone: "good"`.
+  * **Under-Defended Path (`weapons < 2`):** Raid breaches the gates. Raiders deterministically plunder 50% of stored food (minimum 1 if available), up to 4 wood, and up to 3 stone, clamping safely so resources never become negative. 0 weapons are consumed. Returns a warning Chronicle entry with `tone: "warning"` itemizing looted goods.
+  * Created unit test suite `src/defense.test.ts` with 6 exhaustive test cases covering threshold boundaries (2 weapons, >2 weapons, 1 weapon, 0 weapons), resource clamping, empty hold edge cases, and deterministic resource mutations.
+* **Why:**
+  * Adheres strictly to the architectural goal of **State Determinism** documented in `docs/DECISIONS.md`: isolating combat math from React hooks and network side-effects makes defense calculation 100% reproducible and testable.
+
+### 3. Expedition Resolution & Raid Trigger Integration (`src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Connected `resolveRaid` and `applyRaidToResources` into the `sendExpedition` lifecycle in `src/state/ColonyProvider.tsx`.
+  * **Raid Triggering:** When an expedition resolves successfully with `triggersRaid: true`:
+    1. Awards expedition spoils to colony inventory.
+    2. Runs `resolveRaid(withRewards)` and applies weapon wear (if defended) or resource looting (if breached).
+    3. Prepends both the battle chronicle entry and the expedition return chronicle entry to `activities`.
+    4. Sets `lastRaid: RaidResolution` in context state with an exposed `dismissRaidAlert()` callback for interactive UI feedback.
+  * **Failure Invariant:** If an expedition fails (e.g. `?fail=true`, `blocked-pass`, network timeout, or server error), the error is caught, the scout returns safely, and **no raid is triggered**.
+* **Why:**
+  * Satisfies D7's core requirement: only successful expeditions to hostile locations trigger a raid, while failed expeditions never cause counterattacks.
+  * Integrates the combat resolution into the core state machine without introducing race conditions.
+
+### 4. UI Intel & Defensive Readiness Affordances (`src/pages/ColonyPage.tsx`, `src/styles.css`)
+* **What was changed:**
+  * Added `"goblin-outpost"` to `destinationDetails` in `ColonyPage.tsx` with high danger warning and `requiresDefense: true`.
+  * **Dynamic Defense Readiness Card:** When Goblin Outpost is selected, displays a live defensive assessment showing whether current colony weapons satisfy the garrison threshold:
+    - Prepared (`weapons >= 2`): Green status card confirming Stonehome will repel the attackers (`🛡️ Garrison Prepared`).
+    - Compromised (`weapons < 2`): Red status card alerting that the hold lacks sufficient weapons and will be plundered (`⚠️ Defenses Vulnerable!`).
+  * **Prominent Raid Alert Banner:** Added a dismissible banner at the top of the Shift Ledger in `ColonyPage.tsx` displaying the immediate aftermath of any raid event (repelled vs. breached) along with plundered losses or consumed weapons.
+  * Added corresponding styles in `src/styles.css` matching the dwarfhold fantasy aesthetic.
+* **Why:**
+  * Fulfills Requirement D7's UX mandate: the raid result and its effect on game state must be clearly visible and communicated to the player with strong affordances before and after dispatch.
+
+
+
+
+
 
 

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginExpedition } from "../api";
+import { applyRaidToResources, resolveRaid } from "../defense";
 import { advanceDay, jobLabel } from "../simulation";
 import type {
   Activity,
   ColonyState,
   JobType,
+  RaidResolution,
   ResourceKey,
 } from "../types";
 import { ColonyContext, type ColonyContextValue } from "./ColonyContext";
@@ -58,6 +60,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
   const [colony, setColony] = useState(initialState);
   const [paused, setPaused] = useState(false);
   const [expeditionPending, setExpeditionPending] = useState(false);
+  const [lastRaid, setLastRaid] = useState<RaidResolution | null>(null);
   const inFlightDwarves = useRef<Set<string>>(new Set());
   const [activities, setActivities] = useState<Activity[]>([
     {
@@ -155,6 +158,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
 
     inFlightDwarves.current.add(dwarfId);
     setExpeditionPending(true);
+    setLastRaid(null);
     setColony((current) => ({
       ...current,
       dwarves: current.dwarves.map((item) =>
@@ -173,35 +177,60 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     try {
       const result = await beginExpedition(dwarf.id, destination);
 
-      setColony((current) => ({
-        ...current,
-        resources: Object.entries(result.rewards).reduce(
+      let raidOutcome: RaidResolution | null = null;
+
+      setColony((current) => {
+        const withRewards = Object.entries(result.rewards).reduce(
           (all, [key, amount]) => ({
             ...all,
             [key]: all[key as ResourceKey] + (amount ?? 0),
           }),
           current.resources,
-        ),
-        dwarves: current.dwarves.map((item) =>
-          item.id === dwarf.id
-            ? {
-              ...item,
-              status: item.assignment ? "working" : "idle",
-            }
-            : item,
-        ),
-      }));
-      setActivities((current) =>
-        [
-          {
-            id: result.expeditionId,
-            day: colony.day,
-            message: result.message,
-            tone: "good" as const,
-          },
+        );
+
+        let finalResources = withRewards;
+        if (result.triggersRaid) {
+          raidOutcome = resolveRaid(withRewards);
+          finalResources = applyRaidToResources(withRewards, raidOutcome);
+        }
+
+        return {
           ...current,
-        ].slice(0, 6),
-      );
+          resources: finalResources,
+          dwarves: current.dwarves.map((item) =>
+            item.id === dwarf.id
+              ? {
+                ...item,
+                status: item.assignment ? "working" : "idle",
+              }
+              : item,
+          ),
+        };
+      });
+
+      if (raidOutcome) {
+        setLastRaid(raidOutcome);
+      }
+
+      setActivities((current) => {
+        const newActivities: Activity[] = [];
+        if (raidOutcome) {
+          newActivities.push({
+            id: crypto.randomUUID(),
+            day: colony.day,
+            message: (raidOutcome as RaidResolution).message,
+            tone: (raidOutcome as RaidResolution).tone,
+          });
+        }
+        newActivities.push({
+          id: result.expeditionId,
+          day: colony.day,
+          message: result.message,
+          tone: "good" as const,
+        });
+
+        return [...newActivities, ...current].slice(0, 6);
+      });
     } catch (error) {
       setColony((current) => ({
         ...current,
@@ -239,6 +268,8 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     paused,
     activities,
     expeditionPending,
+    lastRaid,
+    dismissRaidAlert: () => setLastRaid(null),
     togglePaused: () => setPaused((value) => !value),
     assignDwarf,
     craftTool,

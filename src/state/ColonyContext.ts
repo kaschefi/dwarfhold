@@ -1,11 +1,13 @@
 import { createContext, useContext } from "react";
-import type { Activity, ColonyState, JobType } from "../types";
+import type { Activity, ColonyState, JobType, RaidResolution } from "../types";
 
 export interface ColonyContextValue {
   colony: ColonyState;
   paused: boolean;
   activities: Activity[];
   expeditionPending: boolean;
+  lastRaid: RaidResolution | null;
+  dismissRaidAlert: () => void;
   togglePaused: () => void;
   assignDwarf: (id: string, assignment: JobType) => void;
   craftTool: () => void;

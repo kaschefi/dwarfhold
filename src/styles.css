@@ -417,6 +417,113 @@ small {
     color: #e6ad52
 }
 
+.defense-status {
+    margin: 4px 13px 8px;
+    padding: 8px 10px;
+    border: 1px solid #4e3d2a;
+    font: 11px Barlow Condensed;
+    line-height: 1.3;
+}
+
+.defense-status strong {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.defense-status p {
+    margin: 0;
+}
+
+.defense-status.ready {
+    background: #172618;
+    border-color: #3b6c38;
+    color: #92d48a;
+}
+
+.defense-status.ready strong {
+    color: #a8ee9e;
+}
+
+.defense-status.breached {
+    background: #2a1510;
+    border-color: #7a3525;
+    color: #e59380;
+}
+
+.defense-status.breached strong {
+    color: #ff9d85;
+}
+
+.raid-alert-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border: 1px solid #4e3d2a;
+    box-shadow: 0 4px 16px #0008;
+}
+
+.raid-alert-banner.defended {
+    background: linear-gradient(135deg, #1b2f1c, #132014);
+    border-color: #4a8247;
+}
+
+.raid-alert-banner.breached {
+    background: linear-gradient(135deg, #381a13, #220f0b);
+    border-color: #8c3b28;
+}
+
+.raid-alert-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.raid-alert-icon {
+    font-size: 26px;
+}
+
+.raid-alert-banner h4 {
+    font: 700 15px Almendra;
+    margin: 0 0 2px;
+    letter-spacing: .04em;
+}
+
+.raid-alert-banner.defended h4 {
+    color: #a8ee9e;
+}
+
+.raid-alert-banner.breached h4 {
+    color: #ff9d85;
+}
+
+.raid-alert-banner p {
+    font: 12px Barlow Condensed;
+    color: #d8c8ae;
+    margin: 0;
+}
+
+.raid-dismiss-btn {
+    background: transparent;
+    border: 1px solid #5d4633;
+    color: #bfa180;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+}
+
+.raid-dismiss-btn:hover {
+    background: #3a2a1c;
+    color: #fff;
+}
+
 .chronicle {
     min-height: 245px
 }
