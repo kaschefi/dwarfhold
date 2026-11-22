@@ -142,6 +142,20 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Adheres strictly to the architectural goal of **State Determinism** documented in `docs/DECISIONS.md`: isolating combat math from React hooks and network side-effects makes defense calculation 100% reproducible and testable.
 
+### 3. Expedition Resolution & Raid Trigger Integration (`src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Connected `resolveRaid` and `applyRaidToResources` into the `sendExpedition` lifecycle in `src/state/ColonyProvider.tsx`.
+  * **Raid Triggering:** When an expedition resolves successfully with `triggersRaid: true`:
+    1. Awards expedition spoils to colony inventory.
+    2. Runs `resolveRaid(withRewards)` and applies weapon wear (if defended) or resource looting (if breached).
+    3. Prepends both the battle chronicle entry and the expedition return chronicle entry to `activities`.
+    4. Sets `lastRaid: RaidResolution` in context state with an exposed `dismissRaidAlert()` callback for interactive UI feedback.
+  * **Failure Invariant:** If an expedition fails (e.g. `?fail=true`, `blocked-pass`, network timeout, or server error), the error is caught, the scout returns safely, and **no raid is triggered**.
+* **Why:**
+  * Satisfies D7's core requirement: only successful expeditions to hostile locations trigger a raid, while failed expeditions never cause counterattacks.
+  * Integrates the combat resolution into the core state machine without introducing race conditions.
+
+
 
 
 
