@@ -180,6 +180,18 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Satisfies Requirement D2 specification: "an equipped tool grants +1 additional unit of the dwarf's assigned resource per day" while adhering strictly to the D4/D2 Expedition Tool Policy (equipped tools remain with the scout on expeditions but produce no colony yield while away).
 
+### Feat 2: Tool Inventory & Equipping Invariants (`src/equipment.ts`, `src/equipment.test.ts`, `src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Created `src/equipment.ts` with pure state transformation functions `equipToolState` and `unequipToolState`:
+    - **Equip Invariants:** Enforces that a dwarf cannot equip a tool if none are in stock (`resources.tools < 1`), if already equipped (`dwarf.equippedTool === true`), or if away on an expedition (`status === "expedition"`) or crafting (`status === "crafting"`). Decrements `resources.tools` by 1 and sets `dwarf.equippedTool = true`.
+    - **Unequip Invariants:** Enforces that a dwarf cannot unequip unless carrying a tool (`dwarf.equippedTool === true`), and cannot unequip while away on an expedition or crafting. Increments `resources.tools` by 1 and sets `dwarf.equippedTool = false`.
+    - **Conservation of Tools:** Enforces strict invariant: `resources.tools + count(equippedTools) === total colony tools`.
+  * Connected `equipTool` and `unequipTool` into `ColonyProvider.tsx` and exposed them via `ColonyContextValue` with chronicle activity updates.
+  * Created unit test suite `src/equipment.test.ts` (7 tests) covering inventory decrement/increment, tool conservation, empty inventory guards, duplicate equip prevention, and status restrictions (`expedition`, `crafting`).
+* **Why:**
+  * Satisfies Requirement D2 specification: "Dwarves can equip an available tool from resources.tools. Invariants: 1 dwarf carries at most 1 tool; 1 tool cannot be equipped by multiple dwarves; total equipped tools + unequipped inventory tools = total colony tools. Equipping and unequipped actions must keep inventory strictly consistent."
+
+
 
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginExpedition } from "../api";
 import { applyRaidToResources, resolveRaid } from "../defense";
+import { equipToolState, unequipToolState } from "../equipment";
 import { advanceDay, jobLabel } from "../simulation";
 import type {
   Activity,
@@ -111,6 +112,59 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
         ...current,
       ].slice(0, 6),
     );
+  }
+
+  function equipTool(dwarfId: string) {
+    const result = equipToolState(colony, dwarfId);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+        tone: "good" as const,
+      },
+      ...current,
+    ].slice(0, 6));
+  }
+
+  function unequipTool(dwarfId: string) {
+    const result = unequipToolState(colony, dwarfId);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+      },
+      ...current,
+    ].slice(0, 6));
   }
 
   function craftTool() {
@@ -273,6 +327,8 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     dismissRaidAlert: () => setLastRaid(null),
     togglePaused: () => setPaused((value) => !value),
     assignDwarf,
+    equipTool,
+    unequipTool,
     craftTool,
     sendExpedition,
   };
