@@ -260,6 +260,19 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Fulfills Requirement D3 specification: "forging a tool or weapon requires materials, an eligible character, and time. An invalid attempt must change neither workers nor resources. Immediate crafting is not sufficient."
 
+### Feat 2: Colony State & Context Integration (`src/state/ColonyProvider.tsx`, `src/state/ColonyContext.ts`)
+* **What was changed:**
+  * Added `startCrafting: (recipeId: "tool" | "weapon", workerId: string) => void` to `ColonyContextValue` interface in `src/state/ColonyContext.ts`.
+  * Implemented `startCrafting(recipeId, workerId)` in `ColonyProvider.tsx` using `startCraftingTask`:
+    - Checks worker availability and resource sufficiency.
+    - Appends a warning entry to the Hold Chronicle on invalid attempts without state mutations.
+    - Updates colony state on valid start and records an artisan crafting announcement in the Chronicle with `tone: "good"`.
+  * Added reactive simulation tick craft completion detection in `useEffect` in `ColonyProvider.tsx`:
+    - When `current.activeCrafting` completes on a simulation tick (`next.activeCrafting === null`), dynamically identifies the completed item and artisan name and posts a celebratory completion notice to the Chronicle.
+* **Why:**
+  * Integrates the pure crafting task engine cleanly into React context, enabling future UI components to dispatch timed forge jobs and observe completion events.
+
+
 
 
 

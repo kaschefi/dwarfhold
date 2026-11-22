@@ -14,6 +14,7 @@ export interface ColonyContextValue {
   unequipTool: (dwarfId: string) => void;
   craftTool: () => void;
   craftWeapon: () => void;
+  startCrafting: (recipeId: "tool" | "weapon", workerId: string) => void;
   sendExpedition: (dwarfId: string, destination: string) => Promise<void>;
 }
 

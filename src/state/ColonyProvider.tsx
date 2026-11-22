@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginExpedition } from "../services/api";
 import { applyRaidToResources, resolveRaid } from "../domain/defense";
-import { craftWeaponState } from "../domain/crafting";
+import { craftWeaponState, startCraftingTask } from "../domain/crafting";
 import { equipToolState, unequipToolState } from "../domain/equipment";
 import { advanceDay, jobLabel } from "../domain/simulation";
 import type {
@@ -76,10 +76,32 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (paused) return;
 
-    const timer = window.setInterval(
-      () => setColony((current) => advanceDay(current)),
-      8_000,
-    );
+    const timer = window.setInterval(() => {
+      setColony((current) => {
+        const taskBefore = current.activeCrafting;
+        const next = advanceDay(current);
+
+        if (taskBefore && !next.activeCrafting) {
+          const worker = current.dwarves.find((d) => d.id === taskBefore.workerId);
+          const workerName = worker ? worker.name : "The artisan";
+          const itemLabel =
+            taskBefore.recipeId === "tool" ? "sturdy iron tool" : "stout weapon";
+          setActivities((act) =>
+            [
+              {
+                id: crypto.randomUUID(),
+                day: next.day,
+                message: `${workerName} finished forging a ${itemLabel} at the Ember Forge!`,
+                tone: "good" as const,
+              },
+              ...act,
+            ].slice(0, 6),
+          );
+        }
+
+        return next;
+      });
+    }, 8_000);
 
     return () => window.clearInterval(timer);
   }, [paused]);
@@ -206,6 +228,33 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
 
   function craftWeapon() {
     const result = craftWeaponState(colony);
+    if (!result.success) {
+      setActivities((current) => [
+        {
+          id: crypto.randomUUID(),
+          day: colony.day,
+          message: result.message,
+          tone: "warning" as const,
+        },
+        ...current,
+      ].slice(0, 6));
+      return;
+    }
+
+    setColony(result.state);
+    setActivities((current) => [
+      {
+        id: crypto.randomUUID(),
+        day: colony.day,
+        message: result.message,
+        tone: "good" as const,
+      },
+      ...current,
+    ].slice(0, 6));
+  }
+
+  function startCrafting(recipeId: "tool" | "weapon", workerId: string) {
+    const result = startCraftingTask(colony, recipeId, workerId);
     if (!result.success) {
       setActivities((current) => [
         {
@@ -359,6 +408,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     unequipTool,
     craftTool,
     craftWeapon,
+    startCrafting,
     sendExpedition,
   };
 
