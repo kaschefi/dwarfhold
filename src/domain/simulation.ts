@@ -1,4 +1,4 @@
-import type { ColonyState, JobType, Resources } from "./types";
+import type { ColonyState, JobType, Resources } from "../types";
 
 export const production: Record<Exclude<JobType, null>, Partial<Resources>> = {
   woodcutting: { wood: 3 }, mining: { stone: 2 }, farming: { food: 4 },

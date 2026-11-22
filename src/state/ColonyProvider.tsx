@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { beginExpedition } from "../api";
-import { applyRaidToResources, resolveRaid } from "../defense";
-import { craftWeaponState } from "../crafting";
-import { equipToolState, unequipToolState } from "../equipment";
-import { advanceDay, jobLabel } from "../simulation";
+import { beginExpedition } from "../services/api";
+import { applyRaidToResources, resolveRaid } from "../domain/defense";
+import { craftWeaponState } from "../domain/crafting";
+import { equipToolState, unequipToolState } from "../domain/equipment";
+import { advanceDay, jobLabel } from "../domain/simulation";
 import type {
   Activity,
   ColonyState,

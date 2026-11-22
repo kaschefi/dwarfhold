@@ -1,4 +1,4 @@
-import type { ColonyState, Resources } from "./types";
+import type { ColonyState, Resources } from "../types";
 
 export const WEAPON_COST = {
   wood: 2,

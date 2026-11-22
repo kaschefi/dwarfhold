@@ -1,4 +1,4 @@
-import type { ColonyState } from "./types";
+import type { ColonyState } from "../types";
 
 export interface EquipmentActionResult {
   state: ColonyState;

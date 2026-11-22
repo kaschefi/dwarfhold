@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { canCraftTool, canCraftWeapon, craftWeaponState, WEAPON_COST } from "./crafting";
-import type { ColonyState } from "./types";
+import { canCraftTool, canCraftWeapon, craftWeaponState, WEAPON_COST } from "../src/domain/crafting";
+import type { ColonyState } from "../src/types";
 
 describe("colony crafting system", () => {
   const baseState: ColonyState = {

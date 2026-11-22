@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { advanceDay } from "./simulation";
-import type { ColonyState } from "./types";
+import { advanceDay } from "../src/domain/simulation";
+import type { ColonyState } from "../src/types";
 
 describe("colony simulation", () => {
   it("produces assigned resources and feeds the company", () => {

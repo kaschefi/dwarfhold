@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { equipToolState, unequipToolState } from "./equipment";
-import type { ColonyState } from "./types";
+import { equipToolState, unequipToolState } from "../src/domain/equipment";
+import type { ColonyState } from "../src/types";
 
 describe("equipment system", () => {
   const baseState: ColonyState = {

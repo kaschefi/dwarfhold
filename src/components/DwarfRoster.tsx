@@ -1,4 +1,4 @@
-import { jobLabel } from "../simulation";
+import { jobLabel } from "../domain/simulation";
 import type { Dwarf, JobType } from "../types";
 
 const jobs: Exclude<JobType, null>[] = [

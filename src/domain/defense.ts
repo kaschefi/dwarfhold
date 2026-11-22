@@ -1,4 +1,4 @@
-import type { RaidResolution, Resources } from "./types";
+import type { RaidResolution, Resources } from "../types";
 
 export const DEFENSE_WEAPON_THRESHOLD = 2;
 

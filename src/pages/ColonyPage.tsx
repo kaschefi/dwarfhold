@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Chronicle } from "../components/Chronicle";
 import { DwarfRoster } from "../components/DwarfRoster";
-import { DEFENSE_WEAPON_THRESHOLD } from "../defense";
-import { jobLabel, production } from "../simulation";
+import { DEFENSE_WEAPON_THRESHOLD } from "../domain/defense";
+import { jobLabel, production } from "../domain/simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 

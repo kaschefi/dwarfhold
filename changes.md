@@ -217,6 +217,30 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Satisfies Requirement D2 specification: "Show equipped tool status, owner, and equip/unequip toggles in the Roster. Add the weapon crafting card to ForgePage.tsx."
 
+---
+
+## Architectural Refactoring — Professional Domain & Test Reorganization
+
+### Clean Separation of Domain, Services, and Dedicated Test Suite
+* **What was changed:**
+  * Created root `tests/` directory and centralized all automated unit and integration tests:
+    - `tests/simulation.test.ts`
+    - `tests/equipment.test.ts`
+    - `tests/crafting.test.ts`
+    - `tests/defense.test.ts`
+  * Created `src/domain/` to isolate pure, deterministic colony simulation business logic (zero React dependencies):
+    - `src/domain/simulation.ts` (daily tick, job production, food shortage)
+    - `src/domain/equipment.ts` (tool equipping, unequipping, conservation invariants)
+    - `src/domain/crafting.ts` (recipes, material checks, weapon & tool forging)
+    - `src/domain/defense.ts` (raid calculations, weapon wear, deterministic looting)
+  * Created `src/services/` and relocated `api.ts` to `src/services/api.ts` (network and timeout resilience).
+  * Updated `tsconfig.app.json` to include both `"src"` and `"tests"`.
+  * Updated all consumer import paths across `src/components/`, `src/pages/`, `src/state/`, and `tests/`.
+* **Why:**
+  * Keeps `src/` strictly dedicated to 100% shipping production code with zero test noise.
+  * Separates pure business logic from UI rendering, paving the way for upcoming requirements (D3 Timed Crafting, D5 Persistence Engine, D6 Species Expansion) without code sprawl or merge conflict risks.
+
+
 
 
 
