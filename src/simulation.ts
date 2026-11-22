@@ -13,7 +13,7 @@ export function advanceDay(state: ColonyState): ColonyState {
     const output = production[dwarf.assignment];
 
     Object.entries(output).forEach(([resource, amount]) => {
-      let producedAmount = amount ?? 0;
+      let producedAmount = (amount ?? 0) + (dwarf.equippedTool ? 1 : 0);
 
       if (state.foodShortage) {
         producedAmount = Math.floor(producedAmount / 2);

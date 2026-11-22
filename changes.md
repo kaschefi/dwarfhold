@@ -166,6 +166,21 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Fulfills Requirement D7's UX mandate: the raid result and its effect on game state must be clearly visible and communicated to the player with strong affordances before and after dispatch.
 
+---
+
+## Requirement D2 — Useful Tools, Weapons, and Equipment (Branch: `feat/d2-tools-and-weapons`)
+
+### Feat 1: Equipped Tool Daily Production Benefit (`src/simulation.ts`, `src/pages/ColonyPage.tsx`)
+* **What was changed:**
+  * Updated `advanceDay()` in `src/simulation.ts` so that active workers (`status === "working"` with an active `assignment`) carrying an equipped tool (`dwarf.equippedTool === true`) receive a +1 bonus to their produced resource per day (Woodcutting: 3 $\to$ 4, Mining: 2 $\to$ 3, Farming: 4 $\to$ 5).
+  * Maintained expedition and work invariants: Dwarves with `status !== "working"` (e.g. `expedition`, `crafting`, or `idle`) or with `assignment === null` produce 0 resources, even if carrying an equipped tool.
+  * Maintained food shortage halving: when `foodShortage` is active, the tool-augmented production is halved via `Math.floor(producedAmount / 2)` (e.g., Woodcutting with tool produces $\lfloor 4 / 2 \rfloor = 2$).
+  * Updated the `dailyOutput` aggregation in `src/pages/ColonyPage.tsx` so the Shift Ledger accurately projects daily yields including worker equipped tool bonuses.
+  * Added 3 comprehensive unit tests in `src/simulation.test.ts` verifying tool bonus across jobs, zero-yield preservation when not working/away on expeditions, and food shortage halving behavior.
+* **Why:**
+  * Satisfies Requirement D2 specification: "an equipped tool grants +1 additional unit of the dwarf's assigned resource per day" while adhering strictly to the D4/D2 Expedition Tool Policy (equipped tools remain with the scout on expeditions but produce no colony yield while away).
+
+
 
 
 

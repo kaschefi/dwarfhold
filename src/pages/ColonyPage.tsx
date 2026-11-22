@@ -50,7 +50,7 @@ export function ColonyPage() {
       if (dwarf.status === "working" && dwarf.assignment) {
         const output = production[dwarf.assignment];
         Object.entries(output).forEach(([resource, amount]) => {
-          let producedAmount = amount ?? 0;
+          let producedAmount = (amount ?? 0) + (dwarf.equippedTool ? 1 : 0);
 
           if (colony.foodShortage) {
             producedAmount = Math.floor(producedAmount / 2);
