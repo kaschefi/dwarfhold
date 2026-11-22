@@ -203,6 +203,21 @@ This document tracks architectural and code changes made to the codebase, explai
 * **Why:**
   * Satisfies Requirement D2 specification: "Add a weapon recipe to the Forge (e.g., 2 wood + 4 stone -> 1 weapon). Weapons are stored in resources.weapons for colony defense (consumed/checked in D7)."
 
+### Feat 4: UI Affordances (`src/components/DwarfRoster.tsx`, `src/pages/ForgePage.tsx`, `src/pages/ColonyPage.tsx`, `src/styles.css`)
+* **What was changed:**
+  * **Roster Equipment Affordances (`DwarfRoster.tsx`, `ColonyPage.tsx`, `styles.css`):**
+    - Passed `onEquipTool`, `onUnequipTool`, and `availableTools` (`colony.resources.tools`) from `ColonyContext` into `DwarfRoster`.
+    - Added an equipped tool badge (`⚒️`) next to the dwarf's name with an explanatory tooltip (`"Equipped tool (+1 resource/day)"`).
+    - Added interactive equip/unequip action controls alongside the assignment dropdown:
+      - **Equip Action:** When unequipped, renders `+ Equip ⚒️`. Disabled if dwarf is away on expedition or crafting, or if `availableTools < 1`, with tooltips explaining the disable condition.
+      - **Unequip Action:** When equipped, renders `Unequip`. Disabled if dwarf is away on expedition or crafting.
+  * **Forge Weapon Recipe Card (`ForgePage.tsx`):**
+    - Wrapped the forge recipe cards in a vertical `.center-stack` container alongside the right-hand Chronicle panel.
+    - Added the weapon crafting card (`2 🪵 + 4 🪨 → 1 ⚔️`) with `"Forge weapon"` trigger button invoking `craftWeapon()`.
+* **Why:**
+  * Satisfies Requirement D2 specification: "Show equipped tool status, owner, and equip/unequip toggles in the Roster. Add the weapon crafting card to ForgePage.tsx."
+
+
 
 
 

@@ -249,6 +249,55 @@ small {
     padding: 5px
 }
 
+.dwarf-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+}
+
+.dwarf-actions select {
+    flex: 1;
+    min-width: 0;
+}
+
+.tool-btn {
+    background: #241d15;
+    border: 1px solid #5a4631;
+    color: #d8c8ae;
+    padding: 5px 8px;
+    font: 700 11px Barlow Condensed;
+    cursor: pointer;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.tool-btn:hover:not(:disabled) {
+    background: #3d3020;
+    border-color: #8c6a43;
+}
+
+.tool-btn.equip {
+    color: #e2a84f;
+}
+
+.tool-btn.unequip {
+    color: #bfa180;
+}
+
+.tool-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.equipped-badge {
+    margin-left: 6px;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
 .status {
     align-self: start;
     text-transform: uppercase;
