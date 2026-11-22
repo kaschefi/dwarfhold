@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Chronicle } from "../components/Chronicle";
 import { DwarfRoster } from "../components/DwarfRoster";
+import { DEFENSE_WEAPON_THRESHOLD } from "../defense";
 import { jobLabel, production } from "../simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 
 const destinationDetails: Record<
   string,
-  { label: string; preview: string; danger?: boolean }
+  { label: string; preview: string; danger?: boolean; requiresDefense?: boolean }
 > = {
   "crystal-cave": {
     label: "Crystal Cave",
@@ -16,6 +17,13 @@ const destinationDetails: Record<
   "old-mine": {
     label: "The Old Mine",
     preview: "Abandoned tunnels holding deep stone and structural timber.",
+  },
+  "goblin-outpost": {
+    label: "Goblin Outpost",
+    preview:
+      "Heavily guarded war camp. High plunder, but hostile raiders will track the scout home to attack Stonehome!",
+    danger: true,
+    requiresDefense: true,
   },
   "blocked-pass": {
     label: "Blocked Pass",
@@ -29,6 +37,8 @@ export function ColonyPage() {
     colony,
     activities,
     expeditionPending,
+    lastRaid,
+    dismissRaidAlert,
     assignDwarf,
     sendExpedition,
   } = useColony();
@@ -68,6 +78,35 @@ export function ColonyPage() {
       <DwarfRoster dwarves={colony.dwarves} onAssign={assignDwarf} />
 
       <section className="center-stack">
+        {lastRaid && (
+          <div
+            className={`raid-alert-banner ${
+              lastRaid.defended ? "defended" : "breached"
+            }`}
+          >
+            <div className="raid-alert-content">
+              <span className="raid-alert-icon">
+                {lastRaid.defended ? "🛡️" : "⚔️"}
+              </span>
+              <div>
+                <h4>
+                  {lastRaid.defended
+                    ? "Raid Repelled!"
+                    : "Hold Breached by Raiders!"}
+                </h4>
+                <p>{lastRaid.message}</p>
+              </div>
+            </div>
+            <button
+              className="raid-dismiss-btn"
+              onClick={dismissRaidAlert}
+              title="Dismiss alert"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         <section className="panel production">
           <header>
             <div>
@@ -180,6 +219,27 @@ export function ColonyPage() {
             >
               {destinationDetails[destination].preview}
             </p>
+          )}
+
+          {destinationDetails[destination]?.requiresDefense && (
+            <div
+              className={`defense-status ${
+                colony.resources.weapons >= DEFENSE_WEAPON_THRESHOLD
+                  ? "ready"
+                  : "breached"
+              }`}
+            >
+              <strong>
+                {colony.resources.weapons >= DEFENSE_WEAPON_THRESHOLD
+                  ? "🛡️ Garrison Prepared"
+                  : "⚠️ Defense Compromised!"}
+              </strong>
+              <p>
+                {colony.resources.weapons >= DEFENSE_WEAPON_THRESHOLD
+                  ? `${colony.resources.weapons}/${DEFENSE_WEAPON_THRESHOLD} weapons ready. Stonehome will repel the raid!`
+                  : `Only ${colony.resources.weapons}/${DEFENSE_WEAPON_THRESHOLD} weapons. Raiders will breach and plunder supplies!`}
+              </p>
+            </div>
           )}
 
           <button

@@ -155,6 +155,18 @@ This document tracks architectural and code changes made to the codebase, explai
   * Satisfies D7's core requirement: only successful expeditions to hostile locations trigger a raid, while failed expeditions never cause counterattacks.
   * Integrates the combat resolution into the core state machine without introducing race conditions.
 
+### 4. UI Intel & Defensive Readiness Affordances (`src/pages/ColonyPage.tsx`, `src/styles.css`)
+* **What was changed:**
+  * Added `"goblin-outpost"` to `destinationDetails` in `ColonyPage.tsx` with high danger warning and `requiresDefense: true`.
+  * **Dynamic Defense Readiness Card:** When Goblin Outpost is selected, displays a live defensive assessment showing whether current colony weapons satisfy the garrison threshold:
+    - Prepared (`weapons >= 2`): Green status card confirming Stonehome will repel the attackers (`🛡️ Garrison Prepared`).
+    - Compromised (`weapons < 2`): Red status card alerting that the hold lacks sufficient weapons and will be plundered (`⚠️ Defenses Vulnerable!`).
+  * **Prominent Raid Alert Banner:** Added a dismissible banner at the top of the Shift Ledger in `ColonyPage.tsx` displaying the immediate aftermath of any raid event (repelled vs. breached) along with plundered losses or consumed weapons.
+  * Added corresponding styles in `src/styles.css` matching the dwarfhold fantasy aesthetic.
+* **Why:**
+  * Fulfills Requirement D7's UX mandate: the raid result and its effect on game state must be clearly visible and communicated to the player with strong affordances before and after dispatch.
+
+
 
 
 
