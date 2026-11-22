@@ -1,4 +1,5 @@
-import type { ColonyState, CraftingTask, Resources } from "../types";
+import type { ColonyState, CraftingTask, Dwarf, Resources } from "../types";
+import { toolWoodCost } from "./species";
 
 export const WEAPON_COST = {
   wood: 2,
@@ -10,10 +11,18 @@ export const TOOL_COST = {
   stone: 2,
 } as const;
 
-export const RECIPE_COSTS: Record<"tool" | "weapon", { wood: number; stone: number }> = {
-  tool: TOOL_COST,
-  weapon: WEAPON_COST,
-};
+export function getRecipeCost(
+  recipeId: "tool" | "weapon",
+  worker?: Dwarf,
+): { wood: number; stone: number } {
+  if (recipeId === "tool") {
+    return {
+      wood: toolWoodCost(worker),
+      stone: TOOL_COST.stone,
+    };
+  }
+  return WEAPON_COST;
+}
 
 export const CRAFTING_DURATIONS: Record<"tool" | "weapon", number> = {
   tool: 2,
@@ -39,12 +48,14 @@ export interface ProgressCraftResult {
   completionMessage?: string;
 }
 
-export function canCraftWeapon(resources: Resources): boolean {
+export function canCraftWeapon(resources: Resources, worker?: Dwarf): boolean {
+  if (worker?.species === "kobold") return false;
   return resources.wood >= WEAPON_COST.wood && resources.stone >= WEAPON_COST.stone;
 }
 
-export function canCraftTool(resources: Resources): boolean {
-  return resources.wood >= TOOL_COST.wood && resources.stone >= TOOL_COST.stone;
+export function canCraftTool(resources: Resources, worker?: Dwarf): boolean {
+  const cost = getRecipeCost("tool", worker);
+  return resources.wood >= cost.wood && resources.stone >= cost.stone;
 }
 
 export function startCraftingTask(
@@ -86,7 +97,15 @@ export function startCraftingTask(
     };
   }
 
-  const cost = RECIPE_COSTS[recipeId];
+  if (worker.species === "kobold" && recipeId === "weapon") {
+    return {
+      state,
+      success: false,
+      message: `${worker.name} lacks the physical strength to hammer heavy dwarven war weapons.`,
+    };
+  }
+
+  const cost = getRecipeCost(recipeId, worker);
   const { wood, stone } = state.resources;
 
   if (wood < cost.wood && stone < cost.stone) {

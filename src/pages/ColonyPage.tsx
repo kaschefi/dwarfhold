@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Chronicle } from "../components/Chronicle";
 import { DwarfRoster } from "../components/DwarfRoster";
 import { DEFENSE_WEAPON_THRESHOLD } from "../domain/defense";
-import { jobLabel, production } from "../domain/simulation";
+import { jobLabel, production, productionFor } from "../domain/simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 
@@ -51,14 +51,14 @@ export function ColonyPage() {
     (total, dwarf) => {
       if (dwarf.status === "working" && dwarf.assignment) {
         const output = productionFor(dwarf);
-        Object.entries(output).forEach(([resource, amount]) => {
+        (Object.entries(output) as [ResourceKey, number][]).forEach(([resource, amount]) => {
           let producedAmount = (amount ?? 0) + (dwarf.equippedTool ? 1 : 0);
 
           if (colony.foodShortage) {
             producedAmount = Math.floor(producedAmount / 2);
           }
 
-          total[resource as ResourceKey] += producedAmount;
+          total[resource] += producedAmount;
         });
       }
       return total;

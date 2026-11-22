@@ -4,6 +4,7 @@ import {
   canCraftTool,
   canCraftWeapon,
   CRAFTING_DURATIONS,
+  getRecipeCost,
 } from "../domain/crafting";
 import { jobLabel } from "../domain/simulation";
 import { useColony } from "../state/ColonyContext";
@@ -31,15 +32,20 @@ export function ForgePage() {
 
   const isForgeBusy = !!activeTask;
 
-  const hasToolMaterials = canCraftTool(colony.resources);
-  const hasWeaponMaterials = canCraftWeapon(colony.resources);
+  const toolCost = getRecipeCost("tool", currentArtisan);
+  const hasToolMaterials = canCraftTool(colony.resources, currentArtisan);
+  const isKoboldWeaponBlocked = currentArtisan?.species === "kobold";
+  const hasWeaponMaterials = canCraftWeapon(colony.resources, currentArtisan);
 
   const isToolDisabled = isForgeBusy || isArtisanUnavailable || !hasToolMaterials;
-  const isWeaponDisabled = isForgeBusy || isArtisanUnavailable || !hasWeaponMaterials;
+  const isWeaponDisabled =
+    isForgeBusy || isArtisanUnavailable || !hasWeaponMaterials || isKoboldWeaponBlocked;
 
-  function getButtonTooltip(hasMaterials: boolean): string {
+  function getButtonTooltip(hasMaterials: boolean, isWeapon = false): string {
     if (isForgeBusy) return "The forge is currently occupied by an active project.";
     if (isArtisanUnavailable) return "Selected artisan is unavailable or busy.";
+    if (isWeapon && isKoboldWeaponBlocked)
+      return "Kobolds lack the strength to forge heavy dwarven war weapons.";
     if (!hasMaterials) return "Insufficient materials in the hold stores.";
     return "Assign artisan and start forging.";
   }
@@ -156,12 +162,17 @@ export function ForgePage() {
           <div>
             <small>EMBER FORGE · {CRAFTING_DURATIONS.tool} DAYS</small>
             <h2>Craft a tool</h2>
-            <p>Equip the hold for future work (+1 resource/day).</p>
+            <p>
+              Equip the hold for future work (+1 resource/day).
+              {currentArtisan?.species === "kobold" && (
+                <span className="species-perk-hint"> (🦎 Kobold salvage discount: 2 timber)</span>
+              )}
+            </p>
           </div>
           <div className="recipe">
-            <span>3 🪵</span>
+            <span>{toolCost.wood} 🪵</span>
             <i>+</i>
-            <span>2 🪨</span>
+            <span>{toolCost.stone} 🪨</span>
             <i>→</i>
             <span>1 ⚒️</span>
             <button
@@ -178,8 +189,13 @@ export function ForgePage() {
         <section className={`panel forge ${isForgeBusy ? "busy-dim" : ""}`}>
           <div>
             <small>EMBER FORGE · {CRAFTING_DURATIONS.weapon} DAYS</small>
-            <h2>Craft a weapon</h2>
-            <p>Arm the hold against hostile raiders.</p>
+            <h2>Forge colony weapon</h2>
+            <p>
+              Arm Stonehome against hostile raids (checked in defense).
+              {isKoboldWeaponBlocked && (
+                <span className="species-limitation-hint"> (⚠️ Kobolds cannot forge war weapons)</span>
+              )}
+            </p>
           </div>
           <div className="recipe">
             <span>2 🪵</span>
@@ -190,7 +206,7 @@ export function ForgePage() {
             <button
               onClick={() => startCrafting("weapon", selectedArtisanId)}
               disabled={isWeaponDisabled}
-              title={getButtonTooltip(hasWeaponMaterials)}
+              title={getButtonTooltip(hasWeaponMaterials, true)}
             >
               Forge weapon
             </button>

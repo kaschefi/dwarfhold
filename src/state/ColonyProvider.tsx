@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginExpedition } from "../services/api";
 import { applyRaidToResources, resolveRaid } from "../domain/defense";
-import { craftWeaponState, startCraftingTask } from "../domain/crafting";
+import { canCraftTool, craftWeaponState, startCraftingTask } from "../domain/crafting";
 import { equipToolState, unequipToolState } from "../domain/equipment";
 import { advanceDay, jobLabel } from "../domain/simulation";
+import { checkExpeditionRecruit } from "../domain/species";
 import type {
   Activity,
   ColonyState,
@@ -192,26 +193,34 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
   }
 
   function craftTool() {
-    if (colony.resources.wood < 3) {
+    if (!canCraftTool(colony.resources)) {
       setActivities((current) => [
         {
           id: crypto.randomUUID(),
           day: colony.day,
-          message: "The forge needs more wood or stone.",
+          message: "The forge needs more timber and stone.",
           tone: "warning" as const,
         },
         ...current,
-      ]);
+      ].slice(0, 6));
       return;
     }
 
-    setColony((current) => forgeTool(current, workerId));
+    setColony((current) => ({
+      ...current,
+      resources: {
+        ...current.resources,
+        wood: current.resources.wood - 3,
+        stone: current.resources.stone - 2,
+        tools: current.resources.tools + 1,
+      },
+    }));
     setActivities((current) =>
       [
         {
           id: crypto.randomUUID(),
           day: colony.day,
-          message: `${worker.name} forged a tool.`,
+          message: "A sturdy iron tool joins the stores.",
           tone: "good" as const,
         },
         ...current,
@@ -303,6 +312,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
       const result = await beginExpedition(dwarf.id, destination);
 
       let raidOutcome: RaidResolution | null = null;
+      let newRecruit: Dwarf | null = null;
 
       setColony((current) => {
         const withRewards = Object.entries(result.rewards).reduce(
@@ -325,11 +335,16 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
             : item,
         );
 
-        return recruitFromCrystalCave({
-          ...current,
-          resources: finalResources,
-          dwarves: returnedDwarves,
-        }, destination);
+        const { state: afterRecruit, recruited } = checkExpeditionRecruit(
+          {
+            ...current,
+            resources: finalResources,
+            dwarves: returnedDwarves,
+          },
+          destination,
+        );
+        newRecruit = recruited;
+        return afterRecruit;
       });
 
       if (raidOutcome) {
@@ -338,6 +353,14 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
 
       setActivities((current) => {
         const newActivities: Activity[] = [];
+        if (newRecruit) {
+          newActivities.push({
+            id: crypto.randomUUID(),
+            day: colony.day,
+            message: `${(newRecruit as Dwarf).name}, a ${(newRecruit as Dwarf).species} scavenger rescued from the Crystal Cave, has joined Stonehome!`,
+            tone: "good" as const,
+          });
+        }
         if (raidOutcome) {
           newActivities.push({
             id: crypto.randomUUID(),

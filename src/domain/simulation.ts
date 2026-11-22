@@ -1,8 +1,10 @@
-import type { ColonyState, JobType, Resources } from "../types";
+import type { ColonyState, Dwarf, JobType, Resources } from "../types";
 import { progressCrafting } from "./crafting";
 
 export const production: Record<Exclude<JobType, null>, Partial<Resources>> = {
-  woodcutting: { wood: 3 }, mining: { stone: 2 }, farming: { food: 4 },
+  woodcutting: { wood: 3 },
+  mining: { stone: 2 },
+  farming: { food: 4 },
 };
 
 export function productionFor(worker: Dwarf): Partial<Resources> {
@@ -10,7 +12,7 @@ export function productionFor(worker: Dwarf): Partial<Resources> {
   if (worker.species === "kobold" && worker.assignment === "mining") {
     return { stone: (production.mining.stone ?? 0) + 2 };
   }
-  return production[worker.assignment];
+  return production[worker.assignment] ?? {};
 }
 
 export function advanceDay(state: ColonyState): ColonyState {
