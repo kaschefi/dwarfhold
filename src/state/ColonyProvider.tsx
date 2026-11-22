@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginExpedition } from "../api";
 import { applyRaidToResources, resolveRaid } from "../defense";
 import { advanceDay, jobLabel } from "../simulation";
+import { forgeTool, recruitFromCrystalCave, toolWoodCost } from "../species";
 import type {
   Activity,
   ColonyState,
+  Dwarf,
   JobType,
   RaidResolution,
   ResourceKey,
@@ -113,13 +115,16 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  function craftTool() {
-    if (colony.resources.wood < 3) {
+  function craftTool(workerId: string) {
+    const worker = colony.dwarves.find((item) => item.id === workerId);
+    if (!worker || worker.status !== "idle") return;
+
+    if (colony.resources.wood < toolWoodCost(worker) || colony.resources.stone < 2) {
       setActivities((current) => [
         {
           id: crypto.randomUUID(),
           day: colony.day,
-          message: "The forge needs more timber.",
+          message: "The forge needs more wood or stone.",
           tone: "warning" as const,
         },
         ...current,
@@ -127,21 +132,13 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setColony((current) => ({
-      ...current,
-      resources: {
-        ...current.resources,
-        wood: current.resources.wood - 3,
-        stone: current.resources.stone - 2,
-        tools: current.resources.tools + 1,
-      },
-    }));
+    setColony((current) => forgeTool(current, workerId));
     setActivities((current) =>
       [
         {
           id: crypto.randomUUID(),
           day: colony.day,
-          message: "A sturdy iron tool joins the stores.",
+          message: `${worker.name} forged a tool.`,
           tone: "good" as const,
         },
         ...current,
@@ -195,18 +192,17 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
           finalResources = applyRaidToResources(withRewards, raidOutcome);
         }
 
-        return {
+        const returnedDwarves: Dwarf[] = current.dwarves.map((item) =>
+          item.id === dwarf.id
+            ? { ...item, status: item.assignment ? "working" : "idle" }
+            : item,
+        );
+
+        return recruitFromCrystalCave({
           ...current,
           resources: finalResources,
-          dwarves: current.dwarves.map((item) =>
-            item.id === dwarf.id
-              ? {
-                ...item,
-                status: item.assignment ? "working" : "idle",
-              }
-              : item,
-          ),
-        };
+          dwarves: returnedDwarves,
+        }, destination);
       });
 
       if (raidOutcome) {

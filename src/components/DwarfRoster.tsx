@@ -48,10 +48,13 @@ export function DwarfRoster({ dwarves, onAssign }: Props) {
               </div>
 
               <div className="dwarf-details">
-                <h3>{dwarf.name}</h3>
+                <h3>{dwarf.name}{dwarf.species === "kobold" ? " · Kobold" : ""}</h3>
                 <p>
                   {dwarf.title} · {specialty}
                 </p>
+                {dwarf.species === "kobold" && (
+                  <p>Mining: +2 extra stone before hunger · Tool: 2 wood instead of 3</p>
+                )}
 
                 <select
                   value={dwarf.assignment ?? ""}

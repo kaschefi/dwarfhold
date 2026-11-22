@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Chronicle } from "../components/Chronicle";
 import { DwarfRoster } from "../components/DwarfRoster";
 import { DEFENSE_WEAPON_THRESHOLD } from "../defense";
-import { jobLabel, production } from "../simulation";
+import { jobLabel, production, productionFor } from "../simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 
@@ -12,7 +12,7 @@ const destinationDetails: Record<
 > = {
   "crystal-cave": {
     label: "Crystal Cave",
-    preview: "Rich crystal seams (stone) and salvageable mining tools.",
+    preview: "Rich crystal seams and mining tools. On the first successful visit, Kivi the kobold joins Stonehome.",
   },
   "old-mine": {
     label: "The Old Mine",
@@ -48,7 +48,7 @@ export function ColonyPage() {
   const dailyOutput = colony.dwarves.reduce<Record<ResourceKey, number>>(
     (total, dwarf) => {
       if (dwarf.status === "working" && dwarf.assignment) {
-        const output = production[dwarf.assignment];
+        const output = productionFor(dwarf);
         Object.entries(output).forEach(([resource, amount]) => {
           let producedAmount = amount ?? 0;
 
@@ -155,7 +155,7 @@ export function ColonyPage() {
                   }{" "}
                   assigned
                 </p>
-                <strong>+{getShownProductionForJob(job)} / day</strong>
+                <strong>Base +{getShownProductionForJob(job)} / day</strong>
               </article>
             ))}
           </div>
