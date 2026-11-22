@@ -62,3 +62,62 @@ This document tracks architectural and code changes made to the codebase, explai
   * If the dwarf returns safely, their tool remains equipped; if an expedition fails, the dwarf returns with their equipment intact.
 * **Why:**
   * Prevents state desynchronization between Person 1's equipment management and Person 2's async expedition lifecycle.
+
+---
+
+## Requirement D4 — Resilient Expeditions (Branch: `feat/d4-expeditions`)
+
+### 1. Permanent Worker Lock Bug Fix (`src/state/ColonyProvider.tsx`)
+* **Problem:**
+  * When an expedition failed (e.g. `blocked-pass` returning HTTP 503 or network errors), `sendExpedition()` caught the error and logged a chronicle notice, but never updated `colony.dwarves`.
+  * As a result, the dwarf remained permanently stuck in `status: "expedition"`, locked out of assignments and future expeditions.
+* **Fix:**
+  * Added worker status recovery inside the `catch` block of `sendExpedition()`.
+  * On failure, the travelling dwarf's status is automatically restored to `"working"` (if assigned to a job) or `"idle"` (if unassigned).
+
+### 2. Concurrency & Double-Dispatch Prevention (`src/state/ColonyProvider.tsx`, `src/pages/ColonyPage.tsx`)
+* **Problem:**
+  * Rapid double-clicking the dispatch button or firing concurrent dispatch calls could trigger multiple in-flight expedition requests for the same dwarf before React re-renders.
+  * `assignDwarf` permitted reassigning and overriding the status of away or crafting workers.
+  * In the UI, the expedition button remained clickable for scouts who were already away or ineligible, causing confusing state mutations.
+* **Fix:**
+  * **Synchronous Runtime In-Flight Guard:** Added `inFlightDwarves = useRef<Set<string>>(new Set())` in `ColonyProvider.tsx` to synchronously reject repeated dispatches for the same dwarf before event loop microtasks finish.
+  * **Eligibility Invariant Enforcement:** `sendExpedition()` and `assignDwarf()` now verify the worker exists and is not currently on an expedition or crafting (`status !== "expedition" && status !== "crafting"`).
+  * **Guaranteed Cleanup via `finally`:** Wrapped status reset and in-flight tracking release inside a `finally` block so locks are guaranteed to release whether the request succeeds or throws.
+  * **Reactive UI Feedback:** In `ColonyPage.tsx`, dropdown options now clearly display `(Away)` or `(Crafting)` badges, dropdowns are disabled while dispatch is in flight, and the button is disabled with explanatory text (`"Scout is away…"`, `"Scout is crafting…"`, or `"Beyond the gate…"`) when unavailable.
+
+### 3. Reassignment Guard & Single-Activity Invariant (`src/components/DwarfRoster.tsx`, `src/simulation.ts`, `src/pages/ColonyPage.tsx`)
+* **Problem:**
+  * If a dwarf with an active assignment (e.g. Bromli on mining) was sent on an expedition, the simulation tick (`advanceDay`) still generated stone/wood every 8 seconds because it only checked `if (!dwarf.assignment)`.
+  * The Shift Ledger still counted travelling dwarves as active producers.
+  * In the Roster UI, assignment dropdowns were only disabled for `expedition`, but not for future `crafting` workers.
+* **Fix:**
+  * **Strict Production Invariant:** Updated `advanceDay()` in `src/simulation.ts` to require `dwarf.status === "working" && dwarf.assignment` before contributing to daily resource production.
+  * **Accurate Ledger Output:** Updated `dailyOutput` and job counter tallies in `ColonyPage.tsx` to only tally dwarves actively in `"working"` status.
+  * **UI Reassignment Lock:** Updated `DwarfRoster.tsx` to disable job selection whenever a dwarf is busy (`status === "expedition" || status === "crafting"`).
+  * **Automated Verification:** Added a unit test in `src/simulation.test.ts` asserting that dwarves on expeditions do not produce resources.
+
+### 4. Network Timeout & Resilience (`src/api.ts`, `src/api.test.ts`)
+* **Problem:**
+  * `fetch("/api/expeditions", ...)` had no client-side timeout. If the backend crashed, dropped packets, or hung indefinitely, the traveling dwarf remained locked in `"expedition"` status and the dispatch button was disabled forever.
+  * If an HTTP error response returned non-JSON content (such as an HTML error page from a reverse proxy or gateway timeout), calling `response.json()` threw an unhandled syntax parse error that rendered raw JSON syntax errors in the Chronicle.
+  * Network disconnects (`TypeError: Failed to fetch`) showed raw JavaScript exception text instead of narrative game feedback.
+* **Fix:**
+  * **Client-Side Timeout with AbortController:** Added an `AbortController` timeout (defaulting to 7000ms, safely above the backend's maximum 5000ms latency). If exceeded, it aborts the request and throws: *"Expedition timed out. The scout lost the trail and returned safely."*
+  * **Safe Error Body Parsing:** Safely parses error responses with a fallback to `Expedition failed (${response.status})` if the server returns non-JSON content.
+  * **Friendly Network Error Formatting:** Catches low-level fetch failures (e.g. server offline) and formats them into clean chronicle-friendly messages: *"Cannot reach the expedition outpost. Check network connection."*
+  * **Automated Test Coverage:** Added unit test suite `src/api.test.ts` covering successful dispatch, custom backend errors, non-JSON gateway fallbacks, timeout aborts, and fetch network errors.
+
+### 5. Expedition Selection UI & Affordance (`src/pages/ColonyPage.tsx`, `src/styles.css`)
+* **Problem:**
+  * Players had minimal visibility into dwarf assignment and equipment before sending them beyond the gate, risking accidental dispatch of vital workers (e.g. sole farmers).
+  * Destinations provided no contextual preview of expected rewards or risks.
+  * The agreed equipment policy (*"Equipped tools stay with the travelling dwarf and return safely"*) was not communicated in the interface as required by D4.
+* **Fix:**
+  * **Enriched Scout Details:** The scout selector now displays each dwarf's current state and assignment (e.g. `[Away]`, `[Crafting]`, `(Mining)`, `(Idle)`) along with a `⚒️` badge if carrying an equipped tool.
+  * **Tool Policy Communication:** When a scout carrying an equipped tool is selected, an explicit note renders: *"⚒️ Carrying equipped tool (returns safely after expedition)."*
+  * **Destination Intel & Risk Preview:** Added destination descriptions previewing expected rewards and danger level (e.g. warning color for Blocked Pass).
+  * **Clear Hold Rule Notice:** Updated panel footer to explicitly state the hold rules: *"The travelling scout is away from the hold and produces no daily resources. Equipped tools remain with the scout and return intact."*
+
+
+

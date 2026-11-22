@@ -5,6 +5,25 @@ import { jobLabel, production } from "../simulation";
 import { useColony } from "../state/ColonyContext";
 import type { ResourceKey } from "../types";
 
+const destinationDetails: Record<
+  string,
+  { label: string; preview: string; danger?: boolean }
+> = {
+  "crystal-cave": {
+    label: "Crystal Cave",
+    preview: "Rich crystal seams (stone) and salvageable mining tools.",
+  },
+  "old-mine": {
+    label: "The Old Mine",
+    preview: "Abandoned tunnels holding deep stone and structural timber.",
+  },
+  "blocked-pass": {
+    label: "Blocked Pass",
+    preview: "Unstable rockfall corridor. Extremely treacherous route.",
+    danger: true,
+  },
+};
+
 export function ColonyPage() {
   const {
     colony,
@@ -18,7 +37,7 @@ export function ColonyPage() {
 
   const dailyOutput = colony.dwarves.reduce<Record<ResourceKey, number>>(
     (total, dwarf) => {
-      if (dwarf.assignment) {
+      if (dwarf.status === "working" && dwarf.assignment) {
         const output = production[dwarf.assignment];
         Object.entries(output).forEach(([resource, amount]) => {
           total[resource as ResourceKey] += amount ?? 0;
@@ -34,6 +53,15 @@ export function ColonyPage() {
       weapons: 0,
     },
   );
+
+  const selectedDwarf = colony.dwarves.find(
+    (dwarf) => dwarf.id === expeditionDwarf,
+  );
+  const isDwarfUnavailable =
+    !selectedDwarf ||
+    selectedDwarf.status === "expedition" ||
+    selectedDwarf.status === "crafting";
+  const isDispatchDisabled = expeditionPending || isDwarfUnavailable;
 
   return (
     <div className="dashboard">
@@ -63,7 +91,7 @@ export function ColonyPage() {
                 <p>
                   {
                     colony.dwarves.filter(
-                      (dwarf) => dwarf.assignment === job,
+                      (dwarf) => dwarf.status === "working" && dwarf.assignment === job,
                     ).length
                   }{" "}
                   assigned
@@ -97,37 +125,78 @@ export function ColonyPage() {
             Scout
             <select
               value={expeditionDwarf}
+              disabled={expeditionPending}
               onChange={(event) => setExpeditionDwarf(event.target.value)}
             >
-              {colony.dwarves.map((dwarf) => (
-                <option key={dwarf.id} value={dwarf.id}>
-                  {dwarf.name}
-                </option>
-              ))}
+              {colony.dwarves.map((dwarf) => {
+                let statusTag = "";
+                if (dwarf.status === "expedition") statusTag = " [Away]";
+                else if (dwarf.status === "crafting") statusTag = " [Crafting]";
+                else if (dwarf.assignment)
+                  statusTag = ` (${jobLabel(dwarf.assignment)})`;
+                else statusTag = " (Idle)";
+
+                const toolTag = dwarf.equippedTool ? " ⚒️" : "";
+
+                return (
+                  <option key={dwarf.id} value={dwarf.id}>
+                    {dwarf.name}
+                    {statusTag}
+                    {toolTag}
+                  </option>
+                );
+              })}
             </select>
           </label>
+
+          {selectedDwarf?.equippedTool && (
+            <p className="tool-note">
+              ⚒️ Carrying equipped tool (returns safely after expedition).
+            </p>
+          )}
 
           <label>
             Destination
             <select
               value={destination}
+              disabled={expeditionPending}
               onChange={(event) => setDestination(event.target.value)}
             >
-              <option value="crystal-cave">Crystal Cave</option>
-              <option value="old-mine">The Old Mine</option>
-              <option value="blocked-pass">Blocked Pass</option>
+              {Object.entries(destinationDetails).map(([key, info]) => (
+                <option key={key} value={key}>
+                  {info.label}
+                </option>
+              ))}
             </select>
           </label>
 
+          {destinationDetails[destination] && (
+            <p
+              className={
+                destinationDetails[destination].danger
+                  ? "intel danger"
+                  : "intel"
+              }
+            >
+              {destinationDetails[destination].preview}
+            </p>
+          )}
+
           <button
-            disabled={expeditionPending}
+            disabled={isDispatchDisabled}
             onClick={() => sendExpedition(expeditionDwarf, destination)}
           >
-            {expeditionPending ? "Beyond the gate…" : "Send expedition"}
+            {expeditionPending
+              ? "Beyond the gate…"
+              : selectedDwarf?.status === "expedition"
+                ? "Scout is away…"
+                : selectedDwarf?.status === "crafting"
+                  ? "Scout is crafting…"
+                  : "Send expedition"}
           </button>
           <p>
-            A result returns in one request. The selected dwarf is unavailable
-            while travelling.
+            The travelling scout is away from the hold and produces no daily
+            resources. Equipped tools remain with the scout and return intact.
           </p>
         </section>
 

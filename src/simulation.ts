@@ -8,7 +8,7 @@ export function advanceDay(state: ColonyState): ColonyState {
   const resources = { ...state.resources };
 
   state.dwarves.forEach((dwarf) => {
-    if (!dwarf.assignment) return;
+    if (dwarf.status !== "working" || !dwarf.assignment) return;
 
     const output = production[dwarf.assignment];
 
