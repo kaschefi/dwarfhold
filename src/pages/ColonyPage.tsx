@@ -50,7 +50,13 @@ export function ColonyPage() {
       if (dwarf.status === "working" && dwarf.assignment) {
         const output = production[dwarf.assignment];
         Object.entries(output).forEach(([resource, amount]) => {
-          total[resource as ResourceKey] += amount ?? 0;
+          let producedAmount = amount ?? 0;
+
+          if (colony.foodShortage) {
+            producedAmount = Math.floor(producedAmount / 2);
+          }
+
+          total[resource as ResourceKey] += producedAmount;
         });
       }
       return total;
@@ -72,17 +78,31 @@ export function ColonyPage() {
     selectedDwarf.status === "expedition" ||
     selectedDwarf.status === "crafting";
   const isDispatchDisabled = expeditionPending || isDwarfUnavailable;
+  function getShownProductionForJob(
+    job: "woodcutting" | "mining" | "farming",
+  ): number {
+    const normalAmount = Object.values(production[job])[0] ?? 0;
 
+    if (colony.foodShortage) {
+      return Math.floor(normalAmount / 2);
+    }
+
+    return normalAmount;
+  }
   return (
     <div className="dashboard">
       <DwarfRoster dwarves={colony.dwarves} onAssign={assignDwarf} />
 
       <section className="center-stack">
+        {colony.foodShortage && (
+          <p className="food-shortage-warning" role="alert">
+            Food shortage: workers are exhausted and produce half as much today.
+          </p>
+        )}
         {lastRaid && (
           <div
-            className={`raid-alert-banner ${
-              lastRaid.defended ? "defended" : "breached"
-            }`}
+            className={`raid-alert-banner ${lastRaid.defended ? "defended" : "breached"
+              }`}
           >
             <div className="raid-alert-content">
               <span className="raid-alert-icon">
@@ -135,7 +155,7 @@ export function ColonyPage() {
                   }{" "}
                   assigned
                 </p>
-                <strong>+{Object.values(production[job])[0]} / day</strong>
+                <strong>+{getShownProductionForJob(job)} / day</strong>
               </article>
             ))}
           </div>
@@ -223,11 +243,10 @@ export function ColonyPage() {
 
           {destinationDetails[destination]?.requiresDefense && (
             <div
-              className={`defense-status ${
-                colony.resources.weapons >= DEFENSE_WEAPON_THRESHOLD
-                  ? "ready"
-                  : "breached"
-              }`}
+              className={`defense-status ${colony.resources.weapons >= DEFENSE_WEAPON_THRESHOLD
+                ? "ready"
+                : "breached"
+                }`}
             >
               <strong>
                 {colony.resources.weapons >= DEFENSE_WEAPON_THRESHOLD

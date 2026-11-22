@@ -13,18 +13,37 @@ export function advanceDay(state: ColonyState): ColonyState {
     const output = production[dwarf.assignment];
 
     Object.entries(output).forEach(([resource, amount]) => {
-      resources[resource as keyof Resources] += amount ?? 0;
+      let producedAmount = amount ?? 0;
+
+      if (state.foodShortage) {
+        producedAmount = Math.floor(producedAmount / 2);
+      }
+
+      resources[resource as keyof Resources] += producedAmount;
     });
 
   });
 
-  resources.food = Math.max(0, resources.food - state.dwarves.length);
+  const foodNeeded = state.dwarves.length;
+  const foodAvailable = resources.food;
+  const notEnoughFood = foodAvailable < foodNeeded;
 
-  return { ...state, day: state.day + 1, resources };
+  if (notEnoughFood) {
+    resources.food = 0;
+  } else {
+    resources.food = foodAvailable - foodNeeded;
+  }
+
+  return {
+    ...state,
+    day: state.day + 1,
+    resources,
+    foodShortage: notEnoughFood,
+  };
 }
 
-export const jobLabel = (job: JobType) => job ? ({ 
-  woodcutting: "Woodcutting", 
-  mining: "Deep Mining", 
-  farming: "Mushroom Farm" 
+export const jobLabel = (job: JobType) => job ? ({
+  woodcutting: "Woodcutting",
+  mining: "Deep Mining",
+  farming: "Mushroom Farm"
 }[job]) : "Unassigned";

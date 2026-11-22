@@ -13,14 +13,14 @@ export interface Resources {
   weapons: number;
 }
 
-export interface Dwarf { 
+export interface Dwarf {
   id: string;
-  name: string; 
-  title: string; 
-  icon: string; 
+  name: string;
+  title: string;
+  icon: string;
   species?: Species;
-  assignment: JobType; 
-  status: DwarfStatus; 
+  assignment: JobType;
+  status: DwarfStatus;
   equippedTool?: boolean;
   specialty?: Exclude<JobType, null>;
 }
@@ -33,12 +33,14 @@ export interface CraftingTask {
   duration: number;
 }
 
-export interface ColonyState { 
-  day: number; 
-  resources: Resources; 
+export interface ColonyState {
+  day: number;
+  foodShortage: boolean;
+  resources: Resources;
   dwarves: Dwarf[];
   activeCrafting?: CraftingTask | null;
 }
+
 
 export interface RaidResolution {
   defended: boolean;
@@ -48,17 +50,17 @@ export interface RaidResolution {
   tone: "good" | "warning";
 }
 
-export interface ExpeditionResult { 
-  expeditionId: string; 
-  status: "completed"; 
-  rewards: Partial<Resources>; 
+export interface ExpeditionResult {
+  expeditionId: string;
+  status: "completed";
+  rewards: Partial<Resources>;
   message: string;
   triggersRaid?: boolean;
 }
 
-export interface Activity { 
-  id: string; 
-  day: number; 
-  message: string; 
+export interface Activity {
+  id: string;
+  day: number;
+  message: string;
   tone?: "good" | "warning";
 }

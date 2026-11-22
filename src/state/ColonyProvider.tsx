@@ -13,6 +13,7 @@ import { ColonyContext, type ColonyContextValue } from "./ColonyContext";
 
 const initialState: ColonyState = {
   day: 12,
+  foodShortage: false,
   resources: {
     wood: 14,
     stone: 9,
