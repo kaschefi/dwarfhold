@@ -97,4 +97,15 @@ This document tracks architectural and code changes made to the codebase, explai
   * **UI Reassignment Lock:** Updated `DwarfRoster.tsx` to disable job selection whenever a dwarf is busy (`status === "expedition" || status === "crafting"`).
   * **Automated Verification:** Added a unit test in `src/simulation.test.ts` asserting that dwarves on expeditions do not produce resources.
 
+### 4. Network Timeout & Resilience (`src/api.ts`, `src/api.test.ts`)
+* **Problem:**
+  * `fetch("/api/expeditions", ...)` had no client-side timeout. If the backend crashed, dropped packets, or hung indefinitely, the traveling dwarf remained locked in `"expedition"` status and the dispatch button was disabled forever.
+  * If an HTTP error response returned non-JSON content (such as an HTML error page from a reverse proxy or gateway timeout), calling `response.json()` threw an unhandled syntax parse error that rendered raw JSON syntax errors in the Chronicle.
+  * Network disconnects (`TypeError: Failed to fetch`) showed raw JavaScript exception text instead of narrative game feedback.
+* **Fix:**
+  * **Client-Side Timeout with AbortController:** Added an `AbortController` timeout (defaulting to 7000ms, safely above the backend's maximum 5000ms latency). If exceeded, it aborts the request and throws: *"Expedition timed out. The scout lost the trail and returned safely."*
+  * **Safe Error Body Parsing:** Safely parses error responses with a fallback to `Expedition failed (${response.status})` if the server returns non-JSON content.
+  * **Friendly Network Error Formatting:** Catches low-level fetch failures (e.g. server offline) and formats them into clean chronicle-friendly messages: *"Cannot reach the expedition outpost. Check network connection."*
+  * **Automated Test Coverage:** Added unit test suite `src/api.test.ts` covering successful dispatch, custom backend errors, non-JSON gateway fallbacks, timeout aborts, and fetch network errors.
+
 
