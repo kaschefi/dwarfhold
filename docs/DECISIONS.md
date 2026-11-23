@@ -1,33 +1,39 @@
-# Quality goals and decisions
+# Quality goals and team decisions
 
-We chose three goals for Dwarfhold. They matter because the player makes decisions based on the colony's numbers and needs to understand what happened after a day, an expedition, or a refresh.
+The requirements D1-D7 describe what the game must do. We also chose three goals for how the game should behave. These are quality goals, not extra game features.
 
-## 1. Predictable game rules
+## 1. Predictable rules
 
-**Goal:** The same colony state and action should produce the same result.
+**Goal:** Given the same colony state and action, the game should produce the same next state.
 
-**Decision:** Daily production, food consumption, crafting progress, species traits, and raid outcomes are calculated in functions under `src/domain/`. These functions take the current state and return a new state. For example, a food shortage halves the next day's production, and a raid without two weapons removes resources according to a fixed rule.
+**Why this matters:** Players use the resource numbers to decide who should work, what to forge, and whether the colony can survive a raid. The same situation should not produce a different result for no clear reason.
 
-**Trade-off:** The React provider needs extra code to call these functions and show their results. In return, the calculations can be tested without running the browser or server.
+**Our decision:** Production, food consumption, crafting progress, species traits, equipment, and raid outcomes are calculated in functions under `src/domain/`. They receive the current state and return the next state. Food shortage reduces the next day's production to the rounded-down half. A raid uses a fixed weapon threshold and a fixed looting rule rather than a random outcome.
 
-**How to check:** Run `npm test`. The simulation, crafting, species, equipment, and defense tests use known inputs and assert exact results.
+**Trade-off:** Keeping these calculations separate from the React interface means the provider needs code to connect actions and results to the screen. It also makes the rules easier to test without opening the browser. The fixed raid rule is less surprising, although it offers less variety than a random one.
 
-## 2. Recovery without inconsistent state
+**How we evaluate it:** Run `npm test` and check that the same input produces the expected resources and worker states. In the browser, compare the Shift Ledger with the resources after a day, both with and without an equipped tool and after a food shortage.
 
-**Goal:** A failed request or browser refresh should not duplicate rewards, lose a worker permanently, or load broken data.
+## 2. Safe recovery from failures and refreshes
 
-**Decision:** An expedition locks its worker while the request is pending. Repeated dispatches are rejected, and a failed or timed-out request returns the worker without rewards. The browser save has a version number and is checked before loading. An expedition interrupted by refresh is cancelled without rewards; an unfinished forge task resumes at its saved progress without charging materials again.
+**Goal:** Failures and refreshes should leave the colony in a usable state, without duplicate rewards or permanently unavailable workers.
 
-**Trade-off:** We do not try to resume a network request after refresh. Cancelling it is simpler and avoids granting a reward for a result the browser can no longer verify.
+**Why this matters:** An expedition uses a delayed network request, and the browser can be refreshed while a worker is away or forging. The player should not receive a reward twice, lose a worker permanently, or continue with an invalid save.
 
-**How to check:** Run `npm test` for the saved-state cases. In the browser, start an expedition or forge task and refresh before it finishes. Also try the Blocked Pass to see a failed expedition return its worker.
+**Our decision:** An expedition marks its worker as unavailable and blocks repeated dispatches. Failed or timed-out requests return the worker without rewards. The saved game has a version number and is validated before loading. After a refresh, an unfinished expedition is cancelled without rewards and its worker returns. An unfinished forge task keeps its progress and does not charge materials again.
 
-## 3. Clear feedback for the player
+**Trade-off:** We cancel an expedition after refresh instead of trying to reconnect to an old request whose result the browser can no longer confirm. Saves are kept in this browser's `localStorage`, so they do not transfer to another browser or device.
 
-**Goal:** The player should see why resources or worker availability changed.
+**How we evaluate it:** Run `npm test` for valid, damaged, and incompatible saves and for interrupted work. In the browser, send a scout to Blocked Pass and confirm that the scout returns without loot. Refresh during an expedition and during forging, then check the worker, resources, and craft progress. Replace the `dwarfhold.save.v1` value with invalid text in DevTools and reload; the game should start a new colony with a notice instead of crashing.
 
-**Decision:** The interface shows a food-shortage warning, worker status, the daily production ledger, forge progress, a raid result, and the save/refresh policy. The Chronicle records important events.
+## 3. Understandable feedback
 
-**Trade-off:** These notices take some screen space, but the rules are visible while playing instead of being hidden in code.
+**Goal:** The player should be able to see why important resources or worker statuses changed.
 
-**How to check:** Play through a food shortage, a craft, and a Goblin Outpost expedition. Compare the notices with the resource bar and worker status after each event.
+**Why this matters:** A correct calculation is still confusing if the player cannot tell why production fell, why a worker is unavailable, or what the raiders took.
+
+**Our decision:** The interface shows worker status, the daily production ledger, a food-shortage warning, forge progress, defense readiness, raid results, and the save/refresh policy. The Chronicle records important events, including failures and successful returns.
+
+**Trade-off:** These explanations use space on the screen. We chose visible feedback so that players can understand the rules while playing instead of needing to inspect the code.
+
+**How we evaluate it:** Without looking at the source, play through a food shortage, a craft, a failed expedition, and a successful Goblin Outpost expedition. After each action, the visible message should explain the resource change or worker status. For the raid, compare the warning and result with the weapon and resource counts.
