@@ -68,7 +68,6 @@ The short delay is deliberate, so that expedition behavior provides a realistic 
 - A delayed local expedition API with success and failure outcomes.
 - A recent-activity chronicle.
 - Responsive fantasy-themed React interface.
-- A small Vitest suite for pure simulation behavior.
 
 ## Run locally
 
@@ -79,14 +78,13 @@ npm install
 npm run dev
 ```
 
-The web app runs at `http://localhost:5174`; its API runs at `http://localhost:4200`. Available scripts are `dev`, `server`, `build`, `test`, and `preview`.
+The web app runs at `http://localhost:5174`; its API runs at `http://localhost:4200`. Available scripts are `dev`, `server`, `build`, and `preview`.
 
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Start the Vite frontend and Express API together |
 | `npm run server` | Start only the API on port 4200 |
 | `npm run build` | Type-check and create a production frontend build |
-| `npm run test` | Run the existing Vitest tests once |
 | `npm run preview` | Preview a previously created production build |
 
 ## API
