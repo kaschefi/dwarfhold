@@ -69,7 +69,7 @@ export interface Worker {
      * Define clear consequence when `food < totalWorkers`:
        * *Recommended Rule:* If food is insufficient at the daily tick, consumption consumes all remaining food, and workers suffer **Starvation Exhaustion** (halving production for the next day, or setting production to 0 until fed).
      * Add visual warning badge / alert banner in `ShiftLedger` and record the shortage in the Hold Chronicle.
-  3. **Unit Tests:** Add unit tests in `src/simulation.test.ts` verifying food consumption math and starvation penalties.
+  3. **Verification:** Compare the displayed food and production values with calculated expectations before and after a shortage.
 
 ### Phase 2: Requirement D2 — Useful Tools, Weapons, and Equipment (20%)
 * **Branch:** `feat/p1-d2-equipment-weapons`

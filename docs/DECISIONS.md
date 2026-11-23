@@ -71,12 +71,12 @@ The project specification explicitly tasked our team with defining rules, thresh
 
 Beyond functional features, our team defined three overarching architectural quality goals:
 
-### 1. State Determinism & Pure Domain Logic
-* **Goal:** Given the same colony state and input, the simulation must produce the exact same next state without side effects.
+### 1. Predictable Rules & Separate Domain Logic
+* **Goal:** The production, food, equipment, and raid rules should produce predictable results from the same game situation. Crafting task IDs are generated when a task begins.
 * **Why this matters:** Players rely on exact numbers to plan assignments, manage rations, and prepare for raids. Non-deterministic or unpredictable state changes undermine trust and make debugging state mutations difficult.
-* **Implementation Decision:** All game rules (production calculation, daily ticks, tool equipping, timed crafting progression, recruit checks, and raid defense) are implemented as pure functions in `src/domain/` (`simulation.ts`, `crafting.ts`, `equipment.ts`, `defense.ts`, `species.ts`). They take state in and return a new state object.
-* **Trade-off:** Pure domain functions require explicit wiring inside `ColonyProvider.tsx` to link domain transitions to React state and persistent storage. However, this decouples game logic from React rendering cycles and enables near-instantaneous unit test execution.
-* **Evaluation:** Verified via **35 automated Vitest unit tests** covering production math, tool bonuses, starvation penalties, raid resolutions, and equipment conservation laws without needing browser mocks.
+* **Implementation Decision:** Core calculations and state transitions live in `src/domain/` (`simulation.ts`, `crafting.ts`, `equipment.ts`, `defense.ts`, `species.ts`). Most receive the current state and return a new state; `startCraftingTask` also creates a task ID from the current time.
+* **Trade-off:** Separate rules require explicit wiring inside `ColonyProvider.tsx`, but are easier to inspect and reason about without the React interface.
+* **Evaluation:** Compare the displayed resources with the expected values after a day of work, with and without a tool and after a food shortage. Check the fixed weapon threshold and looting amounts for a Goblin Outpost raid.
 
 ### 2. Fault Tolerance & Async Resilience
 * **Goal:** Network delays, API errors, rapid user clicks, and browser reloads must never corrupt the colony state or orphan workers.
@@ -86,7 +86,7 @@ Beyond functional features, our team defined three overarching architectural qua
   - Buttons and inputs are disabled while actions are in flight (`expeditionPending`, `isForgeBusy`).
   - Strict runtime schema validation (`persistence.ts`) guards against corrupted `localStorage` snapshots.
 * **Trade-off:** We intentionally cancel in-flight expeditions upon page refresh instead of attempting complex request re-attachment or polling. This ensures the player always returns to a clean, known-good colony state.
-* **Evaluation:** Tested by triggering simulated network failures (`destination="blocked-pass"` and `?fail=true`), simulating network latency, and verifying graceful recovery in unit and manual tests.
+* **Evaluation:** Exercise the `blocked-pass` failure and a slow expedition in the browser; check that the scout returns without a reward on failure and cannot be dispatched twice while a request is pending. Refresh during an expedition and a forge task to inspect the recovery rules.
 
 ### 3. UX Transparency & Affordance
 * **Goal:** Every penalty, restriction, and state change must have a clear cause-and-effect explanation visible in the interface.
@@ -97,4 +97,4 @@ Beyond functional features, our team defined three overarching architectural qua
   - Artisan dropdowns display current assignments and disable busy workers with explanatory tooltips.
   - The Hold Chronicle maintains a running historical log of all game events.
 * **Trade-off:** Maintaining informative banners and tooltips requires extra JSX and styling code, but it makes the simulation self-documenting and accessible to the player.
-* **Evaluation:** Manual play-testing verifying that every state change (hunger, raid breach, tool equip, crafting completion) produces an immediate visual explanation in the UI and Chronicle.
+* **Evaluation:** Play through hunger, a raid, tool equipping, and craft completion; check that the visible status or message explains each resource and worker change.
