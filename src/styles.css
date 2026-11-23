@@ -621,6 +621,18 @@ footer {
     font: 600 14px "Barlow Condensed", sans-serif;
 }
 
+.save-policy {
+    margin-top: 12px;
+    padding: 9px 12px;
+    border: 1px solid #4e3d2a;
+    background: #211b14;
+    color: #c2ad8e;
+    font: 12px Barlow Condensed;
+}
+
+.save-policy strong { color: #e2a84f; }
+.save-policy p { margin: 5px 0 0; color: #e6ad52; }
+
 @media(max-width:1200px) {
     body {
         min-width: 0

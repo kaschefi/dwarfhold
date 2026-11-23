@@ -3,7 +3,7 @@ import { ResourceBar } from "../components/ResourceBar";
 import { useColony } from "../state/ColonyContext";
 
 export function Layout() {
-  const { colony, paused, togglePaused } = useColony();
+  const { colony, paused, saveNotice, togglePaused } = useColony();
 
   return (
     <main>
@@ -39,6 +39,12 @@ export function Layout() {
         </NavLink>
         <NavLink to="/forge">Forge</NavLink>
       </nav>
+
+      <div className="save-policy" role="status">
+        <strong>Autosave in this browser.</strong> An expedition interrupted by refresh is
+        cancelled without rewards. Forge work resumes at its saved progress.
+        {saveNotice && <p>{saveNotice}</p>}
+      </div>
 
       <ResourceBar resources={colony.resources} />
       <Outlet />
