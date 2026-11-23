@@ -4,6 +4,7 @@ import type { Activity, ColonyState, JobType, RaidResolution } from "../types";
 export interface ColonyContextValue {
   colony: ColonyState;
   paused: boolean;
+  saveNotice: string | null;
   activities: Activity[];
   expeditionPending: boolean;
   lastRaid: RaidResolution | null;
