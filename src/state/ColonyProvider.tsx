@@ -5,6 +5,7 @@ import { canCraftTool, craftWeaponState, startCraftingTask } from "../domain/cra
 import { equipToolState, unequipToolState } from "../domain/equipment";
 import { advanceDay, jobLabel } from "../domain/simulation";
 import { checkExpeditionRecruit } from "../domain/species";
+import { browserStorage, loadGame, saveGame } from "./persistence";
 import type {
   Activity,
   ColonyState,
@@ -61,19 +62,29 @@ const initialState: ColonyState = {
   ],
 };
 
+const initialActivities: Activity[] = [
+  {
+    id: "welcome",
+    day: 12,
+    message: "The forge fires are lit. Stonehome wakes.",
+  },
+];
+
 export function ColonyProvider({ children }: { children: ReactNode }) {
-  const [colony, setColony] = useState(initialState);
-  const [paused, setPaused] = useState(false);
+  const [storage] = useState(browserStorage);
+  const [loadedGame] = useState(() => loadGame(storage, initialState, initialActivities));
+  const [colony, setColony] = useState(loadedGame.colony);
+  const [paused, setPaused] = useState(loadedGame.paused);
   const [expeditionPending, setExpeditionPending] = useState(false);
-  const [lastRaid, setLastRaid] = useState<RaidResolution | null>(null);
+  const [lastRaid, setLastRaid] = useState<RaidResolution | null>(loadedGame.lastRaid);
+  const [saveNotice, setSaveNotice] = useState<string | null>(loadedGame.notice);
   const inFlightDwarves = useRef<Set<string>>(new Set());
-  const [activities, setActivities] = useState<Activity[]>([
-    {
-      id: "welcome",
-      day: 12,
-      message: "The forge fires are lit. Stonehome wakes.",
-    },
-  ]);
+  const [activities, setActivities] = useState<Activity[]>(loadedGame.activities);
+
+  useEffect(() => {
+    const saved = saveGame(storage, { colony, paused, activities, lastRaid });
+    if (!saved) setSaveNotice("Saving is unavailable in this browser. Progress may be lost on refresh.");
+  }, [storage, colony, paused, activities, lastRaid]);
 
   useEffect(() => {
     if (paused) return;
@@ -413,6 +424,7 @@ export function ColonyProvider({ children }: { children: ReactNode }) {
   const value: ColonyContextValue = {
     colony,
     paused,
+    saveNotice,
     activities,
     expeditionPending,
     lastRaid,
