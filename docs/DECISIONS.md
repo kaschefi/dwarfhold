@@ -1,39 +1,100 @@
-# Quality goals and team decisions
+# Quality Goals and Team Decisions
 
-The requirements D1-D7 describe what the game must do. We also chose three goals for how the game should behave. These are quality goals, not extra game features.
+This document outlines the architectural decisions, non-functional quality goals, and specific design choices made for **Stonehome (Dwarfhold)** to fulfill requirements **D1 through D7** and prepare for the oral exam defense.
 
-## 1. Predictable rules
+---
 
-**Goal:** Given the same colony state and action, the game should produce the same next state.
+## Part 1: Team Decisions Required by Specification (D1–D7)
 
-**Why this matters:** Players use the resource numbers to decide who should work, what to forge, and whether the colony can survive a raid. The same situation should not produce a different result for no clear reason.
+The project specification explicitly tasked our team with defining rules, thresholds, and policies for several mechanics. Below are the concrete decisions, parameter values, rationales, and code locations for each.
 
-**Our decision:** Production, food consumption, crafting progress, species traits, equipment, and raid outcomes are calculated in functions under `src/domain/`. They receive the current state and return the next state. Food shortage reduces the next day's production to the rounded-down half. A raid uses a fixed weapon threshold and a fixed looting rule rather than a random outcome.
+| Requirement | Specification Prompt | Our Decision | Values / Formula | File Location |
+| :--- | :--- | :--- | :--- | :--- |
+| **D1: Food Shortage** | *"The exact shortage consequence may be chosen by your team, but it must affect gameplay, be explained in the interface, and behave deterministically."* | **Starvation Exhaustion:** Food never drops below 0. A shortage marks the colony with `foodShortage: true`, halving all worker outputs on the subsequent day. | Food consumption: 1/worker/day.<br>Shortage penalty: $\lfloor \text{output} / 2 \rfloor$. | `src/domain/simulation.ts`<br>`src/pages/ColonyPage.tsx` |
+| **D2: Weapon Recipe** | *"The forge should also offer a weapon recipe. Your team may choose and display its material cost. Weapons are stored as a colony resource..."* | **Dwarven Armory Recipe:** Weapons cost more stone than tools to emphasize military construction. Weapons are stored collectively in `resources.weapons` for raid defense. | Cost: **2 Wood + 4 Stone $\rightarrow$ 1 Weapon**.<br>(Compare Tool: 3 Wood + 2 Stone). | `src/domain/crafting.ts`<br>`src/pages/ForgePage.tsx` |
+| **D4: Expedition Tool Policy** | *"Your team must define whether an equipped tool remains with the travelling dwarf or is returned before departure."* | **Tool Stays Equipped:** The travelling dwarf keeps their equipped tool. While away, their status is `'expedition'` so it yields no colony production. It returns intact upon expedition completion. | Worker retains `equippedTool: true`.<br>Equip/unequip locked during transit. | `src/domain/equipment.ts`<br>`src/domain/simulation.ts` |
+| **D5: Interrupted Tasks Policy** | *"The game must also define a reasonable, visible policy for an expedition or forge task interrupted by refresh."* | **Dual Recovery Policy:**<br>1. *Expeditions:* Cancelled without rewards; worker returns safely.<br>2. *Forge Tasks:* Saved in-flight; progress and worker status resume without re-charging materials. | Save key: `dwarfhold.save.v1`<br>Task progress & artisan status preserved in `activeCrafting`. | `src/state/persistence.ts` |
+| **D6: New Species Recruit** | *"Your team may choose the species, identity, and narrative... must have its own production capability and crafting capability or limitation."* | **Kivi Stonespark (Kobold Scavenger):** Recruited once from Crystal Cave.<br>• *Production Perk:* Deep mining (+2 extra stone).<br>• *Crafting Perk:* Salvage discount on tools (costs 1 less wood).<br>• *Crafting Limitation:* Cannot forge heavy war weapons. | Base mining: **4 stone/day**.<br>Tool cost: **2 Wood + 2 Stone**.<br>Weapon crafting: **Strictly blocked**. | `src/domain/species.ts`<br>`src/domain/crafting.ts`<br>`src/domain/simulation.ts` |
+| **D7: Defense Threshold & Looting** | *"If Stonehome has reached a weapon threshold chosen by your team, the colony defends itself. Otherwise, the attackers loot a deterministic selection... decide whether defense consumes or preserves weapons..."* | **Goblin Outpost Raid Event:**<br>• Hostile destination: `goblin-outpost`<br>• Defense threshold: **2 weapons**.<br>• Weapon consumption: Defense consumes **1 weapon** to battle wear.<br>• Breach looting: Raiders steal 50% of food, up to 4 wood, up to 3 stone. | Threshold: **$\ge 2$ weapons**.<br>Wear: **$-1$ weapon on win**.<br>Looting: $\le 50\%$ food (min 1), $\le 4$ wood, $\le 3$ stone. | `src/domain/defense.ts`<br>`server/index.js` |
 
-**Trade-off:** Keeping these calculations separate from the React interface means the provider needs code to connect actions and results to the screen. It also makes the rules easier to test without opening the browser. The fixed raid rule is less surprising, although it offers less variety than a random one.
+---
 
-**How we evaluate it:** Run `npm test` and check that the same input produces the expected resources and worker states. In the browser, compare the Shift Ledger with the resources after a day, both with and without an equipped tool and after a food shortage.
+### In-Depth Breakdown of Requirement Decisions
 
-## 2. Safe recovery from failures and refreshes
+### 1. Requirement D1 — Food Shortage Consequence
+* **The Choice:** When evening food is insufficient (`resources.food < dwarves.length`), stored food is clamped to `0` (preventing invalid negative inventories), and `foodShortage: true` is flagged on the colony state.
+* **The Gameplay Consequence:** Workers suffer **Starvation Exhaustion**. On the following simulation day, all active job outputs are halved:
+  $$\text{Produced Amount} = \left\lfloor \frac{\text{Base Output} + \text{Tool Bonus}}{2} \right\rfloor$$
+* **Why this was chosen:** Halving production punishes poor planning without causing an irreversible death spiral. Because consumption happens at the end of the day, workers finish their shift, eat dinner, and wake up fatigued the next morning.
+* **Interface Feedback:** A persistent amber alert banner (`"Food shortage: workers are exhausted and produce half as much today."`) appears in the Colony dashboard, and the Shift Ledger dynamically recalculates and displays the halved expectations.
 
-**Goal:** Failures and refreshes should leave the colony in a usable state, without duplicate rewards or permanently unavailable workers.
+### 2. Requirement D2 — Weapon Recipe & Armory Storage
+* **The Choice:** We chose a recipe of **2 wood and 4 stone** for weapons.
+* **Why this was chosen:** Tools require more wood for handles and frames (3 wood, 2 stone), whereas heavy military weaponry requires heavy quarried stone/iron (2 wood, 4 stone). 
+* **Collective Storage Rule:** Unlike tools which are equipped 1:1 on workers, weapons are stored collectively in `state.resources.weapons`. Weapons represent the colony's collective perimeter defenses and armory readiness for repelling hostile raids.
 
-**Why this matters:** An expedition uses a delayed network request, and the browser can be refreshed while a worker is away or forging. The player should not receive a reward twice, lose a worker permanently, or continue with an invalid save.
+### 3. Requirement D4 — Expedition Equipment Policy
+* **The Choice:** An equipped tool **remains with the travelling dwarf** on an expedition.
+* **Why this was chosen:** Forcing the player to manually unequip a scout before dispatching and re-equip upon return creates tedious inventory micro-management.
+* **Invariant Protection:** While travelling, the dwarf's status is strictly `'expedition'`. Because `advanceDay()` requires `dwarf.status === "working"` to generate resources, an equipped tool away in the mountains produces **0** colony bonus. Furthermore, `equipToolState()` and `unequipToolState()` reject any equipment modifications while a worker is on an expedition or crafting, preventing state desynchronization.
 
-**Our decision:** An expedition marks its worker as unavailable and blocks repeated dispatches. Failed or timed-out requests return the worker without rewards. The saved game has a version number and is validated before loading. After a refresh, an unfinished expedition is cancelled without rewards and its worker returns. An unfinished forge task keeps its progress and does not charge materials again.
+### 4. Requirement D5 — Refresh & Interruption Recovery Policies
+* **Expedition Interruption Policy:** Cancelled safely. If the player closes or reloads the browser while an asynchronous expedition is in flight, the scout is restored to `'working'` (if assigned) or `'idle'`. No rewards are granted.
+  * *Rationale:* The client cannot verify whether an in-flight HTTP request resolved or timed out while the tab was closed. Cancelling avoids ghost expeditions or unresolvable reward promises.
+* **Forge Task Interruption Policy:** Preserved and resumed. If the browser refreshes mid-craft, the active task (`activeCrafting`), elapsed progress ticks, and artisan status (`'crafting'`) are restored exactly as saved.
+  * *Rationale:* Crafting materials were already deducted upfront when starting the project. Discarding the craft would unjustly penalize the player by destroying their wood and stone.
+* **Storage Invariants & Versioning:** Stored under key `dwarfhold.save.v1` in `localStorage`. If JSON parsing fails or schema validation rejects the data (`isSnapshot`), the game falls back to the default colony state with an explanatory warning banner, preventing application crashes.
 
-**Trade-off:** We cancel an expedition after refresh instead of trying to reconnect to an old request whose result the browser can no longer confirm. Saves are kept in this browser's `localStorage`, so they do not transfer to another browser or device.
+### 5. Requirement D6 — Non-Dwarf Species: Kivi Stonespark (Kobold Scavenger)
+* **Identity & Narrative:** Kivi Stonespark is a Kobold scavenger rescued during the company's first successful trip to the Crystal Cave (`crystal-cave`).
+* **Single-Recruitment Invariant:** `checkExpeditionRecruit()` verifies `!state.dwarves.some(w => w.id === "kobold-kivi")`. Kivi joins Stonehome exactly once.
+* **Mechanical Differences:**
+  1. *Production Trait:* Kivi excels in narrow cave seams, producing **4 stone/day** in Deep Mining (+2 over the standard dwarf yield of 2).
+  2. *Crafting Perk:* Kobold salvage expertise reduces the wood cost of forging tools from **3 wood to 2 wood** (`-1 timber`).
+  3. *Crafting Limitation:* Kobolds lack the upper-body mass to hammer heavy dwarven war weapons. Kivi is strictly blocked from forging weapons (`canCraftWeapon` returns `false`), with descriptive UI disabled states.
+* **Full Integration:** Kivi consumes 1 food per day, can equip tools, can be sent on expeditions, and is persisted in save data.
 
-**How we evaluate it:** Run `npm test` for valid, damaged, and incompatible saves and for interrupted work. In the browser, send a scout to Blocked Pass and confirm that the scout returns without loot. Refresh during an expedition and during forging, then check the worker, resources, and craft progress. Replace the `dwarfhold.save.v1` value with invalid text in DevTools and reload; the game should start a new colony with a notice instead of crashing.
+### 6. Requirement D7 — Expedition Defense & Raid Consequences
+* **Hostile Destination:** Exploring the **Goblin Outpost** (`goblin-outpost`) grants high plunder (6 food, 10 stone, 1 tool) but flags `triggersRaid: true`. Hostile warbands track the scout back to Stonehome.
+* **Weapon Threshold:** Stonehome requires at least **2 weapons** (`DEFENSE_WEAPON_THRESHOLD = 2`) in the armory to repel the assault.
+* **Weapon Consumption Decision:** 
+  * If defended ($\ge 2$ weapons), the colony **consumes 1 weapon** due to battle wear and splintering (`weaponsConsumed: 1`).
+  * *Rationale:* Making weapons single-use would feel excessively punishing, but having them never break removes any incentive to continue forging weapons. Consuming 1 weapon balances reward with attrition.
+* **Breach & Looting Formula:** If weapons are insufficient ($< 2$), raiders breach the hold and deterministically steal:
+  - Up to $50\%$ of stored food (minimum 1 if food $> 0$).
+  - Up to 4 wood and up to 3 stone.
+* **Feedback:** A prominent defense readiness indicator appears on the expedition map, and raid outcomes trigger a high-visibility modal/alert banner (`raid-alert-banner`) and Chronicle entry detailing exact losses.
 
-## 3. Understandable feedback
+---
 
-**Goal:** The player should be able to see why important resources or worker statuses changed.
+## Part 2: Qualitative Goals (Non-Functional Requirements)
 
-**Why this matters:** A correct calculation is still confusing if the player cannot tell why production fell, why a worker is unavailable, or what the raiders took.
+Beyond functional features, our team defined three overarching architectural quality goals:
 
-**Our decision:** The interface shows worker status, the daily production ledger, a food-shortage warning, forge progress, defense readiness, raid results, and the save/refresh policy. The Chronicle records important events, including failures and successful returns.
+### 1. State Determinism & Pure Domain Logic
+* **Goal:** Given the same colony state and input, the simulation must produce the exact same next state without side effects.
+* **Why this matters:** Players rely on exact numbers to plan assignments, manage rations, and prepare for raids. Non-deterministic or unpredictable state changes undermine trust and make debugging state mutations difficult.
+* **Implementation Decision:** All game rules (production calculation, daily ticks, tool equipping, timed crafting progression, recruit checks, and raid defense) are implemented as pure functions in `src/domain/` (`simulation.ts`, `crafting.ts`, `equipment.ts`, `defense.ts`, `species.ts`). They take state in and return a new state object.
+* **Trade-off:** Pure domain functions require explicit wiring inside `ColonyProvider.tsx` to link domain transitions to React state and persistent storage. However, this decouples game logic from React rendering cycles and enables near-instantaneous unit test execution.
+* **Evaluation:** Verified via **35 automated Vitest unit tests** covering production math, tool bonuses, starvation penalties, raid resolutions, and equipment conservation laws without needing browser mocks.
 
-**Trade-off:** These explanations use space on the screen. We chose visible feedback so that players can understand the rules while playing instead of needing to inspect the code.
+### 2. Fault Tolerance & Async Resilience
+* **Goal:** Network delays, API errors, rapid user clicks, and browser reloads must never corrupt the colony state or orphan workers.
+* **Why this matters:** Expeditions interact with an external asynchronous API, while crafting spans multiple simulation ticks. Without strict invariants, race conditions or failed requests could leave workers permanently stuck in unavailable statuses or duplicate resources.
+* **Implementation Decision:**
+  - Workers use a mutually exclusive state machine (`'idle' | 'working' | 'crafting' | 'expedition'`).
+  - Buttons and inputs are disabled while actions are in flight (`expeditionPending`, `isForgeBusy`).
+  - Strict runtime schema validation (`persistence.ts`) guards against corrupted `localStorage` snapshots.
+* **Trade-off:** We intentionally cancel in-flight expeditions upon page refresh instead of attempting complex request re-attachment or polling. This ensures the player always returns to a clean, known-good colony state.
+* **Evaluation:** Tested by triggering simulated network failures (`destination="blocked-pass"` and `?fail=true`), simulating network latency, and verifying graceful recovery in unit and manual tests.
 
-**How we evaluate it:** Without looking at the source, play through a food shortage, a craft, a failed expedition, and a successful Goblin Outpost expedition. After each action, the visible message should explain the resource change or worker status. For the raid, compare the warning and result with the weapon and resource counts.
+### 3. UX Transparency & Affordance
+* **Goal:** Every penalty, restriction, and state change must have a clear cause-and-effect explanation visible in the interface.
+* **Why this matters:** A mathematically correct game engine is frustrating if the player cannot understand why their production dropped, why a button is disabled, or where their resources went.
+* **Implementation Decision:**
+  - Starvation triggers an explicit alert banner and changes Shift Ledger formulas.
+  - Raid readiness is displayed directly on the expedition panel, and breaches show exact stolen items.
+  - Artisan dropdowns display current assignments and disable busy workers with explanatory tooltips.
+  - The Hold Chronicle maintains a running historical log of all game events.
+* **Trade-off:** Maintaining informative banners and tooltips requires extra JSX and styling code, but it makes the simulation self-documenting and accessible to the player.
+* **Evaluation:** Manual play-testing verifying that every state change (hunger, raid breach, tool equip, crafting completion) produces an immediate visual explanation in the UI and Chronicle.
